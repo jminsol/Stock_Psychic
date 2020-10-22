@@ -4,21 +4,24 @@ from com_stock_api.yhfinance.yhfinance_dao import YHFinanceDao
 
 class YHFinance(Resource):
 
+# Date,Open,High,Low,Close,Adj Close,Volume
 
     def __init__(self):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('open', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('close', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('adjclose', type=float, required=False, help='This field cannot be left blank')
         parser.add_argument('high', type=float, required=False, help='This field cannot be left blank')
         parser.add_argument('low', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('amount', type=int, required=False, help='This field cannot be left blank')
-        parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
+        parser.add_argument('close', type=float, required=False, help='This field cannot be left blank')
+        parser.add_argument('adjclose', type=float, required=False, help='This field cannot be left blank')
+        parser.add_argument('volume', type=int, required=False, help='This field cannot be left blank')
     
+    # Date,Open,High,Low,Close,Adj Close,Volume
+
     def post(self):
         data = self.parset.parse_args()
-        stock = YHFinanceDto(data['date'], data['total_case'], data['total_death'], data['ca_cases'], data['ca_death'])
+        stock = YHFinanceDto(data['date'], data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
         try: 
             stock.save()
         except:

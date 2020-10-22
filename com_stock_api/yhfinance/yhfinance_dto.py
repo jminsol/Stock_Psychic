@@ -1,4 +1,22 @@
 from com_stock_api.ext.db import db
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import create_engine
+import pandas as pd
+import os
+
+
+config = {
+    'user' : 'root',
+    'password' : 'root',
+    'host': '127.0.0.1',
+    'port' : '3306',
+    'database' : 'stockdb'
+}
+
+charset = {'utf8':'utf8'}
+url = f"mysql+mysqlconnector://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}?charset=utf8"
+engine = create_engine(url)
+
 
 class YHFinanceDto(db.Model):
     __tablename__ = 'Yahoo_Finance'
@@ -6,19 +24,19 @@ class YHFinanceDto(db.Model):
     id: int = db.Column(db.Integer, primary_key = True, index = True)
     date : str  = db.Column(db.Date)
     open : float = db.Column(db.Float)
-    close : float = db.Column(db.Float)
-    adjclose : float = db.Column(db.Float)
     high : float = db.Column(db.Float)
     low : float = db.Column(db.Float)
-    amount : int = db.Column(db.Integer)
-
+    close : float = db.Column(db.Float)
+    adjclose : float = db.Column(db.Float)
+    volume : int = db.Column(db.Integer)
     #date format : YYYY-MM-DD
     # amount : unit = million 
     
+    # Date,Open,High,Low,Close,Adj Close,Volume
     def __repr__(self):
         return f'YHFinance(id=\'{self.id}\', date=\'{self.date}\',open=\'{self.open}\', \
-            close=\'{self.close}\',adjclose=\'{self.adjclose}\',high=\'{self.high}\',\
-            low=\'{self.low}\',amount=\'{self.amount}\')'
+            high=\'{self.high}\',low=\'{self.low}\', close=\'{self.close}\',\
+                adjclose=\'{self.adjclose}\',volume=\'{self.volume}\',)'
 
 
     @property
@@ -27,12 +45,11 @@ class YHFinanceDto(db.Model):
             'id' : self.id,
             'date' : self.date,
             'open' : self.open,
-            'close' : self.close,
-            'adjclose' : self.adjclose,
             'high' : self.high,
             'low' : self.low,
-            'amount' : self.amount,
-            'date' : self.date
+            'close' : self.close,
+            'adjclose' : self.adjclose,
+            'volume' : self.volume
         }
 
     def save(self):
@@ -42,3 +59,19 @@ class YHFinanceDto(db.Model):
     def delete(self):
         db.session.delete(self)
         db.session.commit()
+
+
+Session = sessionmaker(bind=engine)
+s =Session()
+# When the files exist...
+tickers = ['AAPL', 'TSLA']
+for tic in tickers:
+    path = os.path.abspath(__file__+"/.."+"/data/")
+    file_name = tic + '.csv'
+    input_file = os.path.join(path,file_name)
+
+    df = pd.read_csv(input_file)
+    print(df.head())
+    s.bulk_insert_mappings(YHFinanceDto, df.to_dict(orient="records"))
+    s.commit()
+s.close()

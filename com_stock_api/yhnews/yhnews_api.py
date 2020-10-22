@@ -4,11 +4,14 @@ from com_stock_api.yhnews.yhnews_dao import YHNewsDao
 
 class YHNews(Resource):
 
+# date,ticker,link,headline,neg,neu,pos,compound
+
     def __init__(self):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
         parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
+        parser.add_argument('link', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('headline', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('neg', type=float, required=False, help='This field cannot be left blank')
         parser.add_argument('pos', type=float, required=False, help='This field cannot be left blank')
@@ -17,7 +20,7 @@ class YHNews(Resource):
     
     def post(self):
         data = self.parset.parse_args()
-        news_sentiment = YHNewsDto(data['date'], data['ticker'], data['headline'], data['neg'], data['pos'], data['neu'], data['compound'])
+        news_sentiment = YHNewsDto(data['date'], data['ticker'], data['link'],data['headline'], data['neg'], data['pos'], data['neu'], data['compound'])
         try: 
             news_sentiment.save()
         except:

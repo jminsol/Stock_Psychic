@@ -7,8 +7,8 @@ import os
 #     i.insert(1, "AAPL")
 
 df = pd.read_csv('/Users/jeongminsol/stock_psychic_api/com_stock_api/yhnews/data/AAPL_sentiment.csv')
+print(df.dtypes['date'])
+# df["Ticker"] = "AAPL"
+# df_reorder = df[['Date', 'Ticker', 'Link', 'Headline', 'neg', 'neu', 'pos', 'compound']] # rearrange column here
 
-df["Ticker"] = "AAPL"
-df_reorder = df[['Date', 'Ticker', 'Link', 'Headline', 'neg', 'neu', 'pos', 'compound']] # rearrange column here
-
-df_reorder.to_csv('/Users/jeongminsol/stock_psychic_api/com_stock_api/yhnews/data/AAPL_sentiment2.csv', index=False)
+# df_reorder.to_csv('/Users/jeongminsol/stock_psychic_api/com_stock_api/yhnews/data/AAPL_sentiment2.csv', index=False)

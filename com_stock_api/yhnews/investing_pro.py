@@ -10,7 +10,7 @@ from http.client import IncompleteRead
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 
-class InverstingPro:
+class InvestingPro:
 
     tickers = {'AAPL' : 'apple-computer-inc', 'TSLA' : 'tesla-motors'}
     ticker_str : str
@@ -23,15 +23,11 @@ class InverstingPro:
     END_DATE = datetime.strptime('2020-06-30', '%Y-%m-%d')
   
     def __init__(self):
-        ticker = input(print("Please enter a stock symbol: "))
-        if (self.tickers[ticker]) != None:
-            self.ticker_str = self.tickers.get(ticker)
-            self.ticker = ticker
+        for k,v in tickers:
+            self.ticker = k
+            self.ticker_str = v
             self.n = self.AAPL if self.ticker == 'AAPL' else self.TSLA
             self.processed_info = []
-
-        else:
-            print(KeyError)
 
     def __init__(self, ticker):
         if (self.tickers[ticker]) != None:
@@ -90,7 +86,7 @@ class InverstingPro:
         
 
     def save_news(self, news_list):
-        col = ['Date', 'Ticker', 'Link', 'Headline', 'Content']
+        col = ['date', 'ticker', 'link', 'headline', 'content']
         df = pd.DataFrame(news_list, columns=col)
         path = os.path.abspath(__file__+"/.."+"/data/")
         file_name = self.ticker + '_news.csv'
@@ -119,11 +115,7 @@ class InverstingPro:
                 pass
 
         published_dates[:] = [date for date in published_dates if (self.START_DATE <= date <= self.END_DATE)]
-        return False if (len(published_dates) == 0) else True
-    
-    def date_checker (self, article):
-        ...
-        
+        return False if (len(published_dates) == 0) else True    
 
     def get_headline(self, page):
         headline = page.find('title').text
@@ -169,14 +161,14 @@ class InverstingPro:
     def get_sentiment_analysis(self, news_list):
 
         vader = SentimentIntensityAnalyzer()
-        col = ['Date', 'Ticker', 'Link', 'Headline', 'Content']
+        col = ['date', 'ticker', 'link', 'headline', 'content']
         news_with_scores = pd.DataFrame(news_list, columns=col)
-        scores = news_with_scores['Content'].apply(vader.polarity_scores).tolist()
+        scores = news_with_scores['content'].apply(vader.polarity_scores).tolist()
         
         scores_df = pd.DataFrame(scores)
         news_with_scores = news_with_scores.join(scores_df, rsuffix='_right')
-        news_with_scores['Date'] = pd.to_datetime(news_with_scores.Date).dt.date
-        news_with_scores.drop('Content',axis=1,inplace=True)
+        news_with_scores['date'] = pd.to_datetime(news_with_scores.date).dt.date
+        news_with_scores.drop('content',axis=1,inplace=True)
 
         path = os.path.abspath(__file__+"/.."+"/data/")
         file_name = self.ticker + '_sentiment.csv'
@@ -187,8 +179,8 @@ class InverstingPro:
         print(news_with_scores.head())
 
 if __name__=='__main__':
-    tesla = InverstingPro('TSLA')
-    apple = InverstingPro('AAPL')
+    tesla = InvestingPro('TSLA')
+    apple = InvestingPro('AAPL')
     tesla.hook()
     apple.hook()
 

@@ -9,16 +9,16 @@ class USCovid(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
         parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('total_case', type=int, required=False, help='This field cannot be left blank')
-        parser.add_argument('total_death', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('total_cases', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('total_deaths', type=int, required=False, help='This field cannot be left blank')
         parser.add_argument('ca_cases', type=int, required=False, help='This field cannot be left blank')
-        parser.add_argument('ca_death', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('ca_deaths', type=int, required=False, help='This field cannot be left blank')
 
 
     
     def post(self):
         data = self.parset.parse_args()
-        uscovid = USCovidDto(data['date'], data['total_case'], data['total_death'], data['ca_cases'], data['ca_death'])
+        uscovid = USCovidDto(data['date'], data['total_cases'], data['total_deaths'], data['ca_cases'], data['ca_deaths'])
         try: 
             uscovid.save()
         except:

@@ -7,7 +7,7 @@ from urllib.request import Request
 
 
 
-class YHNewsScrap:
+class FinvizScrap:
 
     ticker : str
     finviz_url = 'https://finviz.com/quote.ashx?t='
@@ -68,7 +68,7 @@ class YHNewsScrap:
 
 
 if __name__=='__main__':
-    news_pro = YHNewsScrap('AAPL')
+    news_pro = FinvizScrap('AAPL')
     news_pro.hook()
 
   
