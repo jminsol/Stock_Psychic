@@ -24,14 +24,6 @@ class InvestingPro:
     TSLA = 150
     START_DATE = datetime.strptime('2020-01-01', '%Y-%m-%d')
     END_DATE = datetime.strptime('2020-06-30', '%Y-%m-%d')
-  
-    def __init__(self):
-        for k,v in tickers:
-            self.ticker = k
-            self.ticker_str = v
-            self.n = self.AAPL if self.ticker == 'AAPL' else self.TSLA
-            self.processed_info = []
-            self.hook()
 
     def __init__(self, ticker):
         if (self.tickers[ticker]) != None:

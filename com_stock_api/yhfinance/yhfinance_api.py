@@ -9,6 +9,7 @@ class YHFinance(Resource):
     def __init__(self):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('open', type=float, required=False, help='This field cannot be left blank')
         parser.add_argument('high', type=float, required=False, help='This field cannot be left blank')
@@ -19,7 +20,7 @@ class YHFinance(Resource):
     
     def post(self):
         data = self.parset.parse_args()
-        stock = YHFinanceDto(data['date'], data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
+        stock = YHFinanceDto(data['date'], data['ticker'],data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
         try: 
             stock.save()
         except:

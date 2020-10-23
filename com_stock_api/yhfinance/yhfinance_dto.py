@@ -22,6 +22,7 @@ class YHFinanceDto(db.Model):
     __tablename__ = 'Yahoo_Finance'
     __table_args__={'mysql_collate':'utf8_general_ci'}
     id: int = db.Column(db.Integer, primary_key = True, index = True)
+    ticker : str = db.Column(db.String)
     date : str  = db.Column(db.Date)
     open : float = db.Column(db.Float)
     high : float = db.Column(db.Float)
@@ -34,7 +35,7 @@ class YHFinanceDto(db.Model):
     
     # Date,Open,High,Low,Close,Adj Close,Volume
     def __repr__(self):
-        return f'YHFinance(id=\'{self.id}\', date=\'{self.date}\',open=\'{self.open}\', \
+        return f'YHFinance(id=\'{self.id}\',ticker=\'{self.ticker}\', date=\'{self.date}\',open=\'{self.open}\', \
             high=\'{self.high}\',low=\'{self.low}\', close=\'{self.close}\',\
                 adjclose=\'{self.adjclose}\',volume=\'{self.volume}\',)'
 
@@ -43,6 +44,7 @@ class YHFinanceDto(db.Model):
     def json(self):
         return {
             'id' : self.id,
+            'ticker' : self.ticker,
             'date' : self.date,
             'open' : self.open,
             'high' : self.high,
