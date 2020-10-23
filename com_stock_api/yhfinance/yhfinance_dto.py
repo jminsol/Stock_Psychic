@@ -60,7 +60,7 @@ class YHFinanceDto(db.Model):
         db.session.delete(self)
         db.session.commit()
 
-
+'''
 Session = sessionmaker(bind=engine)
 s =Session()
 # When the files exist...
@@ -75,3 +75,4 @@ for tic in tickers:
     s.bulk_insert_mappings(YHFinanceDto, df.to_dict(orient="records"))
     s.commit()
 s.close()
+'''

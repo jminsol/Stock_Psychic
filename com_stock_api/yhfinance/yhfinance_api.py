@@ -17,8 +17,6 @@ class YHFinance(Resource):
         parser.add_argument('adjclose', type=float, required=False, help='This field cannot be left blank')
         parser.add_argument('volume', type=int, required=False, help='This field cannot be left blank')
     
-    # Date,Open,High,Low,Close,Adj Close,Volume
-
     def post(self):
         data = self.parset.parse_args()
         stock = YHFinanceDto(data['date'], data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
@@ -33,7 +31,7 @@ class YHFinance(Resource):
         stock = YHFinanceDao.find_by_id(id)
         if stock:
             return stock.json()
-        return {'message': 'uscovid not found'}, 404
+        return {'message': 'The stock was not found'}, 404
 
     def put(self, id):
         data = YHFinance.parser.parse_args()

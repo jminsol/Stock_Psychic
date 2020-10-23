@@ -8,6 +8,9 @@ import re
 import os
 from http.client import IncompleteRead
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import matplotlib.pyplot as plt
+import csv
+
 
 
 class InvestingPro:
@@ -28,6 +31,7 @@ class InvestingPro:
             self.ticker_str = v
             self.n = self.AAPL if self.ticker == 'AAPL' else self.TSLA
             self.processed_info = []
+            self.hook()
 
     def __init__(self, ticker):
         if (self.tickers[ticker]) != None:
@@ -178,9 +182,40 @@ class InvestingPro:
 
         print(news_with_scores.head())
 
+    def get_graph(self, file):
+        
+        x=[]
+        y=[]
+
+        with open(file, 'r') as csvfile:
+            plots= csv.reader(csvfile, delimiter=',')
+            for row in plots:
+                # x.append(str(row[0]))
+                x=row[0]
+                y=re.sub('[^0-9]', '', row[-1]) 
+                print("x and y: ", x, y)
+                # y.append(float(y))
+
+
+        # plt.plot(x,y, marker='o')
+
+        # plt.title(self.ticker + 'sentiment Analysis from stock news')
+
+        # plt.xlabel('date')
+        # plt.ylabel('compounds')
+
+        # plt.show()
+
+
+
 if __name__=='__main__':
     tesla = InvestingPro('TSLA')
-    apple = InvestingPro('AAPL')
-    tesla.hook()
-    apple.hook()
+    # apple = InvestingPro('AAPL')
+    # tesla.hook()
+    # apple.hook()
 
+
+    path = os.path.abspath(__file__+"/.."+"/data/")
+    file_name = 'TSLA_sentiment.csv'
+    input_file = os.path.join(path,file_name)
+    tesla.get_graph(input_file)
