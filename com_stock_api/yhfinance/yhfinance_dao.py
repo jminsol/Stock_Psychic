@@ -29,7 +29,6 @@ class YHFinanceDao():
             session.commit()
         session.close()
 
-'''
-stocks = YHFinanceDao()
-stocks.insert_many()
-'''
+
+# stocks = YHFinanceDao()
+# stocks.insert_many()

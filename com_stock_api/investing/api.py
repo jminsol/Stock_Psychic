@@ -1,8 +1,8 @@
 from flask_restful import Resource, reqparse
-from com_stock_api.yhnews.yhnews_dto import YHNewsDto
-from com_stock_api.yhnews.yhnews_dao import YHNewsDao
+from com_stock_api.investing.dto import InvestingDto
+from com_stock_api.investing.dao import InvestingDao
 
-class YHNews(Resource):
+class Investing(Resource):
 
 # date,ticker,link,headline,neg,neu,pos,compound
 
@@ -20,7 +20,7 @@ class YHNews(Resource):
     
     def post(self):
         data = self.parset.parse_args()
-        news_sentiment = YHNewsDto(data['date'], data['ticker'], data['link'],data['headline'], data['neg'], data['pos'], data['neu'], data['compound'])
+        news_sentiment = InvestingDto(data['date'], data['ticker'], data['link'],data['headline'], data['neg'], data['pos'], data['neu'], data['compound'])
         try: 
             news_sentiment.save()
         except:
@@ -29,20 +29,20 @@ class YHNews(Resource):
     
     
     def get(self, id):
-        news_sentiment = YHNewsDao.find_by_id(id)
+        news_sentiment = InvestingDao.find_by_id(id)
         if news_sentiment:
             return news_sentiment.json()
         return {'message': 'uscovid not found'}, 404
 
     def put(self, id):
-        data = YHNews.parser.parse_args()
-        stock = YHNewsDao.find_by_id(id)
+        data = Investing.parser.parse_args()
+        stock = InvestingDao.find_by_id(id)
 
         stock.title = data['title']
         stock.content = data['content']
         stock.save()
         return stock.json()
 
-class YHNewses(Resource):
+class Investings(Resource):
     def get(self):
-        return {'stock history': list(map(lambda article: article.json(), YHNewsDao.find_all()))}
+        return {'stock history': list(map(lambda article: article.json(), InvestingDao.find_all()))}

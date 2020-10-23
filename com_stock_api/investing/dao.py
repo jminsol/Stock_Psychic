@@ -1,10 +1,10 @@
 from com_stock_api.ext.db import db, openSession
-from com_stock_api.yhnews.yhnews_dto import YHNewsDto
+from com_stock_api.investing.dto import InvestingDto
 import os
 import pandas as pd
 
 
-class YHNewsDao():
+class InvestingDao():
 
     @classmethod
     def find_all(cls):
@@ -26,11 +26,10 @@ class YHNewsDao():
 
             df = pd.read_csv(input_file)
             print(df.head())
-            session.bulk_insert_mappings(YHNewsDto, df.to_dict(orient="records"))
+            session.bulk_insert_mappings(InvestingDto, df.to_dict(orient="records"))
             session.commit()
         session.close()
 
-'''
-news = YHNews()
-news.insert_many()
-'''
+
+# news = InvestingDao()
+# news.insert_many()

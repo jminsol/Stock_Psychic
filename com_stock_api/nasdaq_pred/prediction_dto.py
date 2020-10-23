@@ -1,7 +1,7 @@
 from com_stock_api.ext.db import db
 from com_stock_api.us_covid.us_covid_dto import USCovidDto
 from com_stock_api.yhfinance.yhfinance_dto import YHFinanceDto
-from com_stock_api.yhnews.yhnews_dto import YHNewsDto
+from com_stock_api.investing.dto import InvestingDto
 
 
 class PredictionDto(db.Model):
@@ -9,19 +9,19 @@ class PredictionDto(db.Model):
     __table_args__={'mysql_collate':'utf8_general_ci'}
 
     id: int = db.Column(db.Integer, primary_key = True, index = True)
-    date: str = db.Column(db.Date)
     ticker: str = db.Column(db.String(30))
+    date: str = db.Column(db.Date)
     pred_price: float = db.Column(db.Float)
     
     stock_id: int = db.Column(db.Integer, db.ForeignKey(YHFinanceDto.id))
     covid_id : int = db.Column(db.Integer, db.ForeignKey(USCovidDto.id))
-    news_id: int = db.Column(db.Integer, db.ForeignKey(YHNewsDto.id))
+    news_id: int = db.Column(db.Integer, db.ForeignKey(InvestingDto.id))
 
 
 
     def __init__(self, ticker, date, pred_price, stock_id, covid_id, news_id):
-        self.date = date
         self.ticker = ticker
+        self.date = date
         self.pred_price = pred_price
 
         self.stock_id = stock_id
@@ -29,16 +29,16 @@ class PredictionDto(db.Model):
         self.news_id = news_id
 
     def __repr__(self):
-        return f'Prediction(id=\'{self.id}\',date=\'{self.date}\',\
-            ticker=\'{self.ticker}\',date=\'{self.date}\',pred_price=\'{self.pred_price}\',\
-                stock_id=\'{self.stock_id}\',covid_id=\'{self.covid_id}\', news_id=\'{self.news_id}\' )'
+        return f'Prediction(id=\'{self.id}\',ticker=\'{self.ticker}\',date=\'{self.date}\',\
+                pred_price=\'{self.pred_price}\',stock_id=\'{self.stock_id}\',\
+                covid_id=\'{self.covid_id}\', news_id=\'{self.news_id}\' )'
 
     @property
     def json(self):
         return {
             'id' : self.id,
-            'date' : self.date,
             'ticker' : self.ticker,
+            'date' : self.date,
             'pred_price' : self.pred_price,
             'stock_id' : self.stock_id,
             'covid_id' : self.covid_id,

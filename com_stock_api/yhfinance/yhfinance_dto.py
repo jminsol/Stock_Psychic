@@ -22,7 +22,7 @@ class YHFinanceDto(db.Model):
     __tablename__ = 'Yahoo_Finance'
     __table_args__={'mysql_collate':'utf8_general_ci'}
     id: int = db.Column(db.Integer, primary_key = True, index = True)
-    ticker : str = db.Column(db.String)
+    ticker : str = db.Column(db.String(10))
     date : str  = db.Column(db.Date)
     open : float = db.Column(db.Float)
     high : float = db.Column(db.Float)

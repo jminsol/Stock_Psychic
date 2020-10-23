@@ -1,7 +1,7 @@
 from com_stock_api.ext.db import db
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
-from com_stock_api.yhnews.investing_pro import InvestingPro
+from com_stock_api.investing.pro import InvestingPro
 import pandas as pd
 import os
 
@@ -17,7 +17,7 @@ charset = {'utf8':'utf8'}
 url = f"mysql+mysqlconnector://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}?charset=utf8"
 engine = create_engine(url)
 
-class YHNewsDto(db.Model):
+class InvestingDto(db.Model):
     __tablename__ = 'Yahoo_News'
     __table_args__={'mysql_collate':'utf8_general_ci'}
         # , primary_key = True, index = True
@@ -76,7 +76,7 @@ for tic in tickers:
 
     df = pd.read_csv(input_file)
     print(df.head())
-    s.bulk_insert_mappings(YHNewsDto, df.to_dict(orient="records"))
+    s.bulk_insert_mappings(investingDto, df.to_dict(orient="records"))
     s.commit()
 s.close()
 '''

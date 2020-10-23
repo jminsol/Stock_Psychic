@@ -9,15 +9,15 @@ class Prediction(Resource):
         parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
         parser.add_argument('pred_price', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('past_date', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('covid_date', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('news_date', type=str, required=False, help='This field cannot be left blank')
+        parser.add_argument('stock_id', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('covid_id', type=int, required=False, help='This field cannot be left blank')
+        parser.add_argument('news_id', type=int, required=False, help='This field cannot be left blank')
 
 
     
     def post(self):
         data = self.parset.parse_args()
-        prediction = PredictionDto(data['date'], data['ticker'],data['pred_price'], data['past_date'], data['covid_date'], data['news_date'])
+        prediction = PredictionDto(data['date'], data['ticker'],data['pred_price'], data['stock_id'], data['covid_id'], data['news_id'])
         try: 
             prediction.save()
         except:

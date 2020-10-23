@@ -27,7 +27,6 @@ class USCovidDao():
         session.commit()
         session.close()
 
-'''
-covid = USCovidDao()
-covid.insert_many()
-'''
+
+# covid = USCovidDao()
+# covid.insert_many()
