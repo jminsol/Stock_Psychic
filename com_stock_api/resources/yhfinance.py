@@ -54,6 +54,10 @@ class YHFinanceDto(db.Model):
 class YHFinanceDao(YHFinanceDto):
 
     @classmethod
+    def count(cls):
+        return cls.query.count()
+        
+    @classmethod
     def find_all(cls):
         return cls.query.all()
 
@@ -105,7 +109,9 @@ class YHFinance(Resource):
         data = self.parset.parse_args()
         stock = YHFinanceDto(data['date'], data['ticker'],data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
         try: 
-            stock.save()
+            stock.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
         except:
             return {'message': 'An error occured inserting the covid case'}, 500
         return stock.json(), 201

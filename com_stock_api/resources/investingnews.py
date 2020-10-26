@@ -1,7 +1,6 @@
 from com_stock_api.ext.db import db, openSession
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
-from com_stock_api.investing.pro import InvestingPro
 import pandas as pd
 import os
 import re
@@ -18,7 +17,7 @@ from flask_restful import Resource, reqparse
 
 
 class InvestingDto(db.Model):
-    __tablename__ = 'Yahoo_News'
+    __tablename__ = 'Investing_News'
     __table_args__={'mysql_collate':'utf8_general_ci'}
         # , primary_key = True, index = True
 
@@ -113,8 +112,6 @@ class InvestingDao(InvestingDto):
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
-
-
 
 
 # =============================================================
@@ -286,32 +283,31 @@ if __name__=='__main__':
 # ======================      CONTROLLER    ======================
 # =============================================================
 # =============================================================
+parser = reqparse.RequestParser()
+parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
+parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('link', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('headline', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('neg', type=float, required=False, help='This field cannot be left blank')
+parser.add_argument('pos', type=float, required=False, help='This field cannot be left blank')
+parser.add_argument('neu', type=float, required=False, help='This field cannot be left blank')
+parser.add_argument('compound', type=float, required=False, help='This field cannot be left blank')
 
 class Investing(Resource):
-
-
-    @staticmethod
-    def __init__(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
-        parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('link', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('headline', type=str, required=False, help='This field cannot be left blank')
-        parser.add_argument('neg', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('pos', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('neu', type=float, required=False, help='This field cannot be left blank')
-        parser.add_argument('compound', type=float, required=False, help='This field cannot be left blank')
 
     @staticmethod
     def post():
         data = parser.parse_args()
         news_sentiment = InvestingDto(data['date'], data['ticker'], data['link'],data['headline'], data['neg'], data['pos'], data['neu'], data['compound'])
         try: 
-            news_sentiment.save()
+            news_sentiment.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
         except:
             return {'message': 'An error occured inserting the covid case'}, 500
         return news_sentiment.json(), 201
+        
     
     @staticmethod
     def get(self, id):

@@ -1,14 +1,32 @@
-from com_stock_api.nasdaq_pred.prediction_api import Prediction, Predictions
-# from com_stock_api.us_covid.us_covid_api import USCovid, USCovids
-# from com_stock_api.yhfinance.yhfinance_api import YHFinance, YHFinances
-# from com_stock_api.investing.api import Investing, Investings
-from com_stock_api.home.api import Home
+from com_stock_api.resources.prediction import Prediction, Predictions
+from com_stock_api.resources.home import Home
+
+from com_stock_api.resources.member import Member, Members, Auth, Access
+from com_stock_api.resources.board import Board, Boards
+from com_stock_api.resources.comment import Comment, Comments
+# from com_stock_api.resources.trading import Trading, Tradings
 
 def initialize_routes(api):
     print("====2====")
     api.add_resource(Home, '/nasdaq')
     api.add_resource(Prediction, '/nasdaq/prediction')
     api.add_resource(Predictions, '/nasdaq/predictions')
+
+    api.add_resource(Members, '/api/members')
+    api.add_resource(Member, '/api/member/<string:email>')
+    api.add_resource(Auth, '/api/auth')
+    print('=============== route.py')
+    api.add_resource(Access, '/api/access')
+    api.add_resource(Boards, '/api/boards')
+    api.add_resource(Board, '/api/board')
+    api.add_resource(Comments, '/api/comments')
+    api.add_resource(Comment, '/api/comment/<string:id>')
+    # api.add_resource(Tradings, '/api/tradings')
+    # api.add_resource(Trading, '/api/trading/<string:id>')
+    # api.add_resource(MemberChurnPreds, '/api/member-churn-preds')
+    # api.add_resource(MemberChurnPred, '/api/member-churn-preds')
+    # api.add_resource(RecommendStocks, '/api/recommend-stocks')
+    # api.add_resource(RecommendStock, '/api/recommend-stocks')
 
 
 

@@ -44,6 +44,10 @@ class USCovidDto(db.Model):
 class USCovidDao(USCovidDto):
 
     @classmethod
+    def count(cls):
+        return cls.query.count()
+
+    @classmethod
     def find_all(cls):
         return cls.query.all()
 
@@ -63,7 +67,6 @@ class USCovidDao(USCovidDto):
         session.bulk_insert_mappings(USCovidDto, df.to_dict(orient="records"))
         session.commit()
         session.close()
-
 
 # covid = USCovidDao()
 # covid.insert_many()
