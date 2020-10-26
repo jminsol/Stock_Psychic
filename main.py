@@ -5,7 +5,7 @@ from com_stock_api.ext.routes import initialize_routes
 from com_stock_api.nasdaq_pred.prediction_api import Prediction, Predictions
 from com_stock_api.us_covid.us_covid_api import USCovid, USCovids
 from com_stock_api.yhfinance.yhfinance_api import YHFinance, YHFinances
-from com_stock_api.investing.api import Investing, Investinges
+from com_stock_api.investing.api import Investing, Investings
 
 from com_stock_api.member.member_api import MemberApi, Members
 from com_stock_api.board.board_api import BoardApi, Boards
@@ -40,6 +40,6 @@ initialize_routes(api)
 with app.app_context():
     db.create_all()
 
-@app.route('/api/test')
+@app.route('/nasdaq/test')
 def test():
     return {'test':'SUCCESS'}
