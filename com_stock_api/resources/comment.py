@@ -80,11 +80,11 @@ class CommentVo:
 
 
 
-
-
-
-
 class CommentDao(CommentDto):
+    @classmethod
+    def count(cls):
+        return cls.query.count()
+
 
     def __init__(self):
         ...

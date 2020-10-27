@@ -1,4 +1,3 @@
-'''
 from com_stock_api.ext.db import db
 from com_stock_api.resources.member import MemberDto
 from com_stock_api.resources.yhfinance import YHFinanceDto
@@ -18,30 +17,32 @@ class TradingDto(db.Model):
 
     id: int = db.Column(db.Integer, primary_key=True, index=True)
     email: str = db.Column(db.String(100), db.ForeignKey(MemberDto.email), nullable=False)
-    kospi_stock_id: int = db.Column(db.Integer, db.ForeignKey(StockDto.id))
+    # kospi_stock_id: int = db.Column(db.Integer, db.ForeignKey(StockDto.id))
     nasdaq_stock_id: int = db.Column(db.Integer, db.ForeignKey(YHFinanceDto.id))
     stock_qty: int = db.Column(db.Integer, nullable=False)
     price: float = db.Column(db.FLOAT, nullable=False)
     trading_date: str = db.Column(db.String(1000), default=datetime.datetime.now())
 
-    def __init__(self, id, email, kospi_stock_id, nasdaq_stock_id, stock_qty, price, trading_date):
+    # def __init__(self, id, email, kospi_stock_id, nasdaq_stock_id, stock_qty, price, trading_date):
+    def __init__(self, id, email, nasdaq_stock_id, stock_qty, price, trading_date):
         self.id = id
         self.email = email
-        self.kospi_stock_id = kospi_stock_id
+        # self.kospi_stock_id = kospi_stock_id
         self.nasdaq_stock_id = nasdaq_stock_id
         self.stock_qty = stock_qty
         self.price = price
         self.trading_date = trading_date
 
     def __repr__(self):
-        return 'Trading(trading_id={}, member_id={}, kospi_stock_id={}, nasdaq_stock_id={}, stock_qty={}, price={}, trading_date={})'.format(self.id, self.member_id, self.kospi_stock_id, self.nasdaq_stock_id, self.stock_qty, self.price, self.trading_date)
+        return 'Trading(trading_id={}, member_id={}, nasdaq_stock_id={}, stock_qty={}, price={}, trading_date={})'.format(self.id, self.member_id, self.kospi_stock_id, self.nasdaq_stock_id, self.stock_qty, self.price, self.trading_date)
+        # return 'Trading(trading_id={}, member_id={}, kospi_stock_id={}, nasdaq_stock_id={}, stock_qty={}, price={}, trading_date={})'.format(self.id, self.member_id, self.kospi_stock_id, self.nasdaq_stock_id, self.stock_qty, self.price, self.trading_date)
     
     @property
     def json(self):
         return {
             'id': self.id,
             'member_id': self.member_id,
-            'kospi_stock_id': self.kospi_stock_id,
+            # 'kospi_stock_id': self.kospi_stock_id,
             'nasdaq_stock_id': self.nasdaq_stock_id,
             'stock_qty': self.stock_qty,
             'price': self.price,
@@ -51,7 +52,7 @@ class TradingDto(db.Model):
 class TradingVo:
     id: int = 0
     email: str = ''
-    kospi_stock_id: int = 0
+    # kospi_stock_id: int = 0
     nasdaq_stock_id: int = 0
     stock_qty: int = 0
     price: float = 0.0
@@ -124,7 +125,7 @@ class Trading(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('id', type=int, required=True, help='This field cannot be left blank')
         parser.add_argument('email', type=str, required=True, help='This field cannot be left blank')
-        parser.add_argument('kospi_stock_id', type=int, required=False, help='This field cannot be left blank')
+        # parser.add_argument('kospi_stock_id', type=int, required=False, help='This field cannot be left blank')
         parser.add_argument('nasdaq_stock_id', type=int, required=False, help='This field cannot be left blank')
         parser.add_argument('stock_qty', type=int, required=True, help='This field cannot be left blank')
         parser.add_argument('price', type=float, required=True, help='This field cannot be left blank')
@@ -132,7 +133,9 @@ class Trading(Resource):
         
     def post(self):
         data = self.parser.parse_args()
-        trading = TradingDto(data['id'], data['email'], data['kospi_stock_id'], data['nasdaq_stock_id'], data['stock_qty'], data['price'], data['trading_date'])
+        trading = TradingDto(data['id'], data['email'], data['nasdaq_stock_id'], data['stock_qty'], data['price'], data['trading_date'])
+
+        # trading = TradingDto(data['id'], data['email'], data['kospi_stock_id'], data['nasdaq_stock_id'], data['stock_qty'], data['price'], data['trading_date'])
         try:
             trading.save()
         except:
@@ -161,4 +164,3 @@ class Tradings(Resource):
 
     def get_by_email(self, email):
         return {'tradings': list(map(lambda trading: trading.json(), TradingDao.find_by_email(email)))}
-    '''
