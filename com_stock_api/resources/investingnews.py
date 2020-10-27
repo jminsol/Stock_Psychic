@@ -42,7 +42,7 @@ class InvestingDto(db.Model):
         self.compound = compound
 
     def __repr__(self):
-        return f'User(id=\'{self.id}\', date=\'{self.date}\',ticker=\'{self.ticker}\',\
+        return f'Investing(id=\'{self.id}\', date=\'{self.date}\',ticker=\'{self.ticker}\',\
                 link=\'{self.link}\', headline=\'{self.headline}\',neg=\'{self.neg}\', \
                 pos=\'{self.pos}\',neu=\'{self.neu}\', compound=\'{self.compound}\',)'
 
@@ -225,11 +225,11 @@ class InvestingPro:
         return text
     def get_publish_time(self, article_page):
         details = article_page.find('meta', attrs={'itemprop': 'dateModified'})
-        publish_date = details.get_attribute_list('content')[0]
-        publish_date = str(datetime.strptime(publish_date, '%Y-%m-%d %H:%M:%S'))
-        publish_date = "".join(publish_date)
-        publish_date = publish_date[:10]
-        return publish_date
+        published_date = details.get_attribute_list('conclasstent')[0]
+        published_date = str(datetime.strptime(published_date, '%Y-%m-%d %H:%M:%S'))
+        published_date = "".join(published_date)
+        published_date = published_date[:10]
+        return published_date
     def get_sentiment_analysis(self, news_list):
         vader = SentimentIntensityAnalyzer()
         col = ['ticker', 'date', 'link', 'headline', 'content']
@@ -305,7 +305,7 @@ class Investing(Resource):
             return {'code' : 0, 'message' : 'SUCCESS'}, 200
 
         except:
-            return {'message': 'An error occured inserting the covid case'}, 500
+            return {'message': 'An error occured inserting the news sentiment'}, 500
         return news_sentiment.json(), 201
         
     
@@ -314,7 +314,7 @@ class Investing(Resource):
         news_sentiment = InvestingDao.find_by_id(id)
         if news_sentiment:
             return news_sentiment.json()
-        return {'message': 'uscovid not found'}, 404
+        return {'message': 'news sentiment not found'}, 404
 
     @staticmethod
     def put(self, id):
@@ -328,4 +328,4 @@ class Investing(Resource):
 
 class Investings(Resource):
     def get(self):
-        return {'stock history': list(map(lambda article: article.json(), InvestingDao.find_all()))}
+        return {'news sentiment': list(map(lambda article: article.json(), InvestingDao.find_all()))}

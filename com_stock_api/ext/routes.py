@@ -1,5 +1,6 @@
 from com_stock_api.resources.prediction import Prediction, Predictions
 from com_stock_api.resources.home import Home
+from com_stock_api.resources.yhfinance import YHFinance, YHFinances
 
 from com_stock_api.resources.member import Member, Members, Auth, Access
 from com_stock_api.resources.board import Board, Boards
@@ -11,6 +12,9 @@ def initialize_routes(api):
     api.add_resource(Home, '/nasdaq')
     api.add_resource(Prediction, '/nasdaq/prediction')
     api.add_resource(Predictions, '/nasdaq/predictions')
+    api.add_resource(YHFinance, '/nasdaq/apple')
+    api.add_resource(YHFinances, '/nasdaq/tesla')
+
 
     api.add_resource(Members, '/api/members')
     api.add_resource(Member, '/api/member/<string:email>')

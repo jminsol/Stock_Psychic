@@ -6,6 +6,7 @@ from com_stock_api.resources.prediction import PredictionDao
 from com_stock_api.resources.uscovid import USCovidDao
 from com_stock_api.resources.yhfinance import YHFinanceDao
 from com_stock_api.resources.investingnews import InvestingDao
+from com_stock_api.resources.recentnews import RecentNewsDao
 
 from com_stock_api.resources.member import MemberDao
 from com_stock_api.resources.board import BoardDao
@@ -17,7 +18,7 @@ from com_stock_api.resources.trading import TradingDao
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={r'/api/*': {"origins": "*"}})
+CORS(app, resources={r'/nasdaq/*': {"origins": "*"}})
 
 # app.register_blueprint(member)
 # app.register_blueprint(board)
@@ -37,33 +38,38 @@ with app.app_context():
     print(f'US Covid case Total Count is {count1}')
     if count1 == 0:
         USCovidDao.insert_many()
-with app.app_context():
+
     count2 = YHFinanceDao.count()
     print(f'NASDAQ history data Total Count is {count2}')
     if count2 == 0:
         YHFinanceDao.insert_many()
-with app.app_context():
+
     count3 = InvestingDao.count()
     print(f'Stock news Total Count is {count3}')
     if count3 == 0:
         InvestingDao.insert_many()
 
-with app.app_context():
-    count = MemberDao.count()
-    print(f'Members Total Count is {count}')
-    if count == 0:
-        MemberDao.insert_many()
-with app.app_context():
-    count = BoardDao.count()
-    print(f'Boards Total Count is {count}')
-    if count == 0:
-        BoardDao.insert_many()
+    count4 = RecentNewsDao.count()
+    print(f'Recent news Total Count is {count4}')
+    if count4 == 0:
+        RecentNewsDao.insert_many()
 
-with app.app_context():
-    count = MemberChurnPredDao.count()
-    print(f'MemberChurnPredictions Total Count is {count}')
-    if count == 0:
-        MemberChurnPredDao.insert_many()
+# with app.app_context():
+#     count = MemberDao.count()
+#     print(f'Members Total Count is {count}')
+#     if count == 0:
+#         MemberDao.insert_many()
+# with app.app_context():
+#     count = BoardDao.count()
+#     print(f'Boards Total Count is {count}')
+#     if count == 0:
+#         BoardDao.insert_many()
+
+# with app.app_context():
+#     count = MemberChurnPredDao.count()
+#     print(f'MemberChurnPredictions Total Count is {count}')
+#     if count == 0:
+#         MemberChurnPredDao.insert_many()
 
 initialize_routes(api)
 
