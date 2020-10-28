@@ -6,7 +6,7 @@ from com_stock_api.resources.investingnews import InvestingDto
 import os
 import pandas as pd
 
-class PredictionDto(db.Model):
+class NasdaqPredictionDto(db.Model):
     __tablename__ = 'NASDAQ_prediction'
     __table_args__={'mysql_collate':'utf8_general_ci'}
 
@@ -30,7 +30,7 @@ class PredictionDto(db.Model):
         self.news_id = news_id
 
     def __repr__(self):
-        return f'Prediction(id=\'{self.id}\',ticker=\'{self.ticker}\',date=\'{self.date}\',\
+        return f'NASDAQ_Prediction(id=\'{self.id}\',ticker=\'{self.ticker}\',date=\'{self.date}\',\
                 pred_price=\'{self.pred_price}\',stock_id=\'{self.stock_id}\',\
                 covid_id=\'{self.covid_id}\', news_id=\'{self.news_id}\' )'
 
@@ -55,7 +55,7 @@ class PredictionDto(db.Model):
         db.session.commint()
 
 
-class PredictionDao(PredictionDto):
+class NasdaqPredictionDao(NasdaqPredictionDto):
 
     @classmethod
     def find_all(cls):
@@ -77,7 +77,7 @@ class PredictionDao(PredictionDto):
 
             df = pd.read_csv(input_file)
             print(df.head())
-            session.bulk_insert_mappings(PredictionDto, df.to_dict(orient="records"))
+            session.bulk_insert_mappings(NasdaqPredictionDto, df.to_dict(orient="records"))
             session.commit()
         session.close()
 
@@ -97,35 +97,35 @@ parser.add_argument('stock_id', type=int, required=False, help='This field canno
 parser.add_argument('covid_id', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('news_id', type=int, required=False, help='This field cannot be left blank')
 
-class Prediction(Resource):    
+class NasdaqPrediction(Resource):    
     @staticmethod
     def post():
         data = parser.parse_args()
-        prediction = PredictionDto(data['date'], data['ticker'],data['pred_price'], data['stock_id'], data['covid_id'], data['news_id'])
+        nprediction = NasdaqPredictionDto(data['date'], data['ticker'],data['pred_price'], data['stock_id'], data['covid_id'], data['news_id'])
         try: 
-            prediction.save(data)
+            nprediction.save(data)
             return {'code' : 0, 'message' : 'SUCCESS'}, 200
         except:
             return {'message': 'An error occured inserting the article'}, 500
-        return prediction.json(), 201
+        return nprediction.json(), 201
     
     
     def get(self, id):
-        article = PredictionDao.find_by_id(id)
+        article = NasdaqPredictionDao.find_by_id(id)
         if article:
             return article.json()
         return {'message': 'Article not found'}, 404
 
     def put(self, id):
-        data = Prediction.parser.parse_args()
-        prediction = PredictionDao.find_by_id(id)
+        data = NasdaqPrediction.parser.parse_args()
+        prediction = NasdaqPredictionDao.find_by_id(id)
 
         prediction.title = data['title']
         prediction.content = data['content']
         prediction.save()
         return prediction.json()
 
-class Predictions(Resource):
+class NasdaqPredictions(Resource):
     def get(self):
-        return {'predictions': list(map(lambda article: article.json(), PredictionDao.find_all()))}
+        return {'predictions': list(map(lambda article: article.json(), NasdaqPredictionDao.find_all()))}
         # return {'articles':[article.json() for article in ArticleDao.find_all()]}

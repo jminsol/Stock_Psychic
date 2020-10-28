@@ -1,4 +1,4 @@
-from com_stock_api.resources.prediction import Prediction, Predictions
+from com_stock_api.resources.nasdaq_prediction import NasdaqPrediction, NasdaqPredictions
 from com_stock_api.resources.home import Home
 from com_stock_api.resources.yhfinance import YHFinance, YHFinances
 
@@ -10,8 +10,8 @@ from com_stock_api.resources.comment import Comment, Comments
 def initialize_routes(api):
     print("====2====")
     api.add_resource(Home, '/nasdaq')
-    api.add_resource(Prediction, '/nasdaq/prediction')
-    api.add_resource(Predictions, '/nasdaq/predictions')
+    api.add_resource(NasdaqPrediction, '/nasdaq/prediction')
+    api.add_resource(NasdaqPredictions, '/nasdaq/predictions')
     api.add_resource(YHFinance, '/nasdaq/apple')
     api.add_resource(YHFinances, '/nasdaq/tesla')
 

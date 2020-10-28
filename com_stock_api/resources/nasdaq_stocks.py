@@ -4,9 +4,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
+import yfinance as yf
+from datetime import datetime, timedelta
 
-class YHFinanceDto(db.Model):
-    __tablename__ = 'Yahoo_Finance'
+
+
+class NasdaqStockDto(db.Model):
+    __tablename__ = 'NASDAQ_Stocks'
     __table_args__={'mysql_collate':'utf8_general_ci'}
     id: int = db.Column(db.Integer, primary_key = True, index = True)
     ticker : str = db.Column(db.String(10))
@@ -18,7 +23,6 @@ class YHFinanceDto(db.Model):
     adjclose : float = db.Column(db.Float)
     volume : int = db.Column(db.Integer)
     #date format : YYYY-MM-DD
-    # amount : unit = million 
     
     def __init__(self, ticker, date, open, high, low, close, adjclose, volume):
         self.ticker = ticker
@@ -30,11 +34,10 @@ class YHFinanceDto(db.Model):
         self.adjclose = adjclose
         self.volume = volume
 
-    # Date,Open,High,Low,Close,Adj Close,Volume
     def __repr__(self):
-        return f'YHFinance(id=\'{self.id}\',ticker=\'{self.ticker}\', date=\'{self.date}\',open=\'{self.open}\', \
-            high=\'{self.high}\',low=\'{self.low}\', close=\'{self.close}\',\
-                adjclose=\'{self.adjclose}\',volume=\'{self.volume}\',)'
+        return f'RecentNews(id=\'{self.id}\', date=\'{self.date}\', time=\'{self.time}\',\
+            ticker=\'{self.ticker}\',link=\'{self.link}\', \
+                headline=\'{self.headline}\', content=\'{self.content}\')'
 
 
     @property
@@ -62,12 +65,12 @@ class NasdaqStockVo:
     adjclose: float = 0.0
     volume: int = 0
 
-class YHFinanceDao(YHFinanceDto):
+class NasdaqStockDao(NasdaqStockDto):
 
     @classmethod
     def count(cls):
         return cls.query.count()
-        
+
     @classmethod
     def find_all(cls):
         return cls.query.all()
@@ -75,30 +78,50 @@ class YHFinanceDao(YHFinanceDto):
     @classmethod
     def find_by_date(cls, date):
         return cls.query.filer_by(date == date).all()
-    
+
     @staticmethod   
     def insert_many():
+        service = NasdaqStockPro()
         Session = openSession()
         session = Session()
-        tickers = ['AAPL', 'TSLA']
-        for tic in tickers:
-            path = os.path.abspath(__file__+"/.."+"/data/")
-            file_name = tic + '.csv'
-            input_file = os.path.join(path,file_name)
-
-            df = pd.read_csv(input_file)
-            print(df.head())
-            session.bulk_insert_mappings(YHFinanceDto, df.to_dict(orient="records"))
+        dfs = service.hook()
+        for i in dfs:
+            print(i.head())
+            session.bulk_insert_mappings(NasdaqStockDto, i.to_dict(orient="records"))
             session.commit()
         session.close()
 
+    @staticmethod
+    def save(news):
+        db.session.add(news)
+        db.session.commit()
 
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+
+
+# =============================================================
+# =============================================================
+# ======================      SERVICE    ======================
+# =============================================================
+# =============================================================
+
+class NasdaqStockPro:
+    tickers : str = ['AAPL', 'TSLA']
+    ticker : str
+    start_date: str = '2020-07-01'
+    end_date: str = ''
+
+    def __init__(self):
+        self.ticker = ''
 # =============================================================
 # =============================================================
 # ======================      CONTROLLER    ======================
 # =============================================================
 # =============================================================
-
 parser = reqparse.RequestParser()
 parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
@@ -109,39 +132,39 @@ parser.add_argument('low', type=float, required=False, help='This field cannot b
 parser.add_argument('close', type=float, required=False, help='This field cannot be left blank')
 parser.add_argument('adjclose', type=float, required=False, help='This field cannot be left blank')
 parser.add_argument('volume', type=int, required=False, help='This field cannot be left blank')
-    
 
-class YHFinance(Resource):
-
-# Date,Open,High,Low,Close,Adj Close,Volume
+class NasdaqStock(Resource):
 
     @staticmethod
-    def post(self):
-        data = self.parset.parse_args()
-        stock = YHFinanceDto(data['date'], data['ticker'],data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
+    def post():
+        data = parser.parse_args()
+        nasdaq_stock = NasdaqStockDto(data['date'], data['ticker'],data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
         try: 
-            stock.save(data)
+            nasdaq_stock.save(data)
             return {'code' : 0, 'message' : 'SUCCESS'}, 200
 
         except:
-            return {'message': 'An error occured inserting the stock history'}, 500
-        return stock.json(), 201
+            return {'message': 'An error occured inserting the current stock'}, 500
+        return nasdaq_stock.json(), 201
         
+    
+    @staticmethod
     def get(self, id):
-        stock = YHFinanceDao.find_by_id(id)
-        if stock:
-            return stock.json()
-        return {'message': 'The stock was not found'}, 404
+        nasdaq_stock = NasdaqStockDao.find_by_id(id)
+        if nasdaq_stock:
+            return nasdaq_stock.json()
+        return {'message': 'The current nasdaq stock was not found'}, 404
 
+    @staticmethod
     def put(self, id):
-        data = YHFinance.parser.parse_args()
-        stock = YHFinanceDao.find_by_id(id)
+        data = NasdaqStock.parser.parse_args()
+        stock = NasdaqStockDao.find_by_id(id)
 
         stock.date = data['date']
         stock.close = data['close']
         stock.save()
         return stock.json()
 
-class YHFinances(Resource):
+class NasdaqStocks(Resource):
     def get(self):
-        return {'stock history': list(map(lambda article: article.json(), YHFinanceDao.find_all()))}
+        return {'Current Stock price list': list(map(lambda article: article.json(), NasdaqStockDao.find_all()))}

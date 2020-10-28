@@ -141,8 +141,6 @@ class RecentNewsPro:
     # Extract news data only
 
         df = news_table.findAll('tr')
-        print ('Recent News Headlines for {}: '.format(ticker))
-
         today = datetime.now()
         recent = today - timedelta(days = 3)
         processed_data = []
@@ -159,10 +157,14 @@ class RecentNewsPro:
             published_time = date_time[1]
             
             #Get news content
-            article = Article(link)
-            article.download()
-            article.parse()
-            content = article.text
+            if "https://finance.yahoo.com/news" in link:
+                content=self.get_yahoo_news(link)
+            else:
+                article = Article(link)
+                article.download()
+                article.parse()
+                content = self.clean_paragraph(article.text)
+                content = "".join(content)
           
             #Scrap news data 
             processed_data.append([published_date, published_time, self.ticker, link, headline, content])
@@ -186,6 +188,23 @@ class RecentNewsPro:
             pub_time = "".join(pub_time)[11:]
 
         return publish_date, pub_time
+
+    def get_yahoo_news(self, link):
+        request = Request(link, headers={"User-Agent": "Mozilla/5.0"})
+        content = urlopen(request).read()
+        page= bs(content, 'lxml')
+
+        text_tag = page.find('div', attrs={'class': 'caas-body'})
+        paragraphs = text_tag.find_all('p')
+        text = '\n'.join([self.clean_paragraph(p.get_text()) for p in paragraphs[:-1]])
+        text = "".join(text)
+        return text
+
+    def clean_paragraph(self, paragraph):
+        paragraph = re.sub(r'\(http\S+', '', paragraph)
+        paragraph = re.sub(r'\([A-Z]+:[A-Z]+\)', '', paragraph)
+        paragraph = re.sub(r'[\n\t\s\']', ' ', paragraph)
+        return normalize('NFKD', paragraph)    
 
     def save_news(self, data):
         col = ['date', 'time', 'ticker', 'link', 'headline', 'content']
@@ -244,7 +263,7 @@ class RecentNews(Resource):
         recent_news = RecentNewsDao.find_by_id(id)
         if recent_news:
             return recent_news.json()
-        return {'message': 'uscovid not found'}, 404
+        return {'message': 'the news not found'}, 404
 
     @staticmethod
     def put(self, id):

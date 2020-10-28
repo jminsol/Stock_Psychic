@@ -2,11 +2,11 @@ from flask import Flask
 from flask_restful import Api
 from com_stock_api.ext.db import url, db
 from com_stock_api.ext.routes import initialize_routes
-from com_stock_api.resources.prediction import PredictionDao
+from com_stock_api.resources.nasdaq_prediction import NasdaqPredictionDao
 from com_stock_api.resources.uscovid import USCovidDao
 from com_stock_api.resources.yhfinance import YHFinanceDao
 from com_stock_api.resources.investingnews import InvestingDao
-from com_stock_api.resources.recentnews import RecentNewsDao
+from com_stock_api.resources.recent_news import RecentNewsDao
 
 from com_stock_api.resources.member import MemberDao
 from com_stock_api.resources.board import BoardDao
