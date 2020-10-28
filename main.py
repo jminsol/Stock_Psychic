@@ -7,6 +7,7 @@ from com_stock_api.resources.uscovid import USCovidDao
 from com_stock_api.resources.yhfinance import YHFinanceDao
 from com_stock_api.resources.investingnews import InvestingDao
 from com_stock_api.resources.recent_news import RecentNewsDao
+from com_stock_api.resources.nasdaq_stock import NasdaqStockDao
 
 from com_stock_api.resources.member import MemberDao
 from com_stock_api.resources.board import BoardDao
@@ -18,7 +19,7 @@ from com_stock_api.resources.trading import TradingDao
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={r'/nasdaq/*': {"origins": "*"}})
+CORS(app, resources={r'/*': {"origins": "*"}})
 
 # app.register_blueprint(member)
 # app.register_blueprint(board)
@@ -37,28 +38,32 @@ with app.app_context():
     count1 = USCovidDao.count()
     print(f'US Covid case Total Count is {count1}')
     if count1 == 0:
-        USCovidDao.insert_many()
+        USCovidDao.bulk()
 
     count2 = YHFinanceDao.count()
     print(f'NASDAQ history data Total Count is {count2}')
     if count2 == 0:
-        YHFinanceDao.insert_many()
+        YHFinanceDao.bulk()
 
     count3 = InvestingDao.count()
     print(f'Stock news Total Count is {count3}')
     if count3 == 0:
-        InvestingDao.insert_many()
+        InvestingDao.bulk()
 
     count4 = RecentNewsDao.count()
     print(f'Recent news Total Count is {count4}')
     if count4 == 0:
-        RecentNewsDao.insert_many()
+        RecentNewsDao.bulk()
 
-# with app.app_context():
-#     count = MemberDao.count()
-#     print(f'Members Total Count is {count}')
-#     if count == 0:
-#         MemberDao.insert_many()
+    count5 = NasdaqStockDao.count()
+    print(f'NASDAQ Stock Total Count is {count5}')
+    if count5 == 0:
+        NasdaqStockDao.bulk()
+
+    count = MemberDao.count()
+    print(f'Members Total Count is {count}')
+    if count == 0:
+        MemberDao.insert_many()
 # with app.app_context():
 #     count = BoardDao.count()
 #     print(f'Boards Total Count is {count}')

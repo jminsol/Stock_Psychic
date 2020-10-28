@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 import pandas as pd
 import os
+import json
+from sqlalchemy import and_,or_,func
+from datetime import datetime
+
 
 class YHFinanceDto(db.Model):
     __tablename__ = 'Yahoo_Finance'
@@ -62,24 +66,38 @@ class NasdaqStockVo:
     adjclose: float = 0.0
     volume: int = 0
 
+Session = openSession()
+session = Session()
+
 class YHFinanceDao(YHFinanceDto):
 
-    @classmethod
-    def count(cls):
-        return cls.query.count()
-        
-    @classmethod
-    def find_all(cls):
-        return cls.query.all()
+    @staticmethod
+    def count():
+        return session.query(func.count(YHFinanceDto.id)).one()
 
-    @classmethod
-    def find_by_date(cls, date):
-        return cls.query.filer_by(date == date).all()
-    
-    @staticmethod   
-    def insert_many():
-        Session = openSession()
-        session = Session()
+    @staticmethod
+    def save(data):
+        db.session.add(data)
+        db.session.commit()
+    @staticmethod
+    def update(data):
+        db.session.add(data)
+        db.session.commit()
+
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+        
+    @staticmethod
+    def find_all(cls):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
+
+    @staticmethod
+    def bulk():
         tickers = ['AAPL', 'TSLA']
         for tic in tickers:
             path = os.path.abspath(__file__+"/.."+"/data/")
@@ -92,10 +110,23 @@ class YHFinanceDao(YHFinanceDto):
             session.commit()
         session.close()
 
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.date.like(date), YHFinanceDto.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        return session.query(YHFinanceDto).filter(YHFinanceDto.ticker.ilike(tic))
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),YHFinanceDto.date.in_([start_date,end_date])))
+    @classmethod
+    def find_today_one(cls, tic):
+        today = datetime.today()
+        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),YHFinanceDto.date.like(today)))
 
 # =============================================================
 # =============================================================
-# ======================      CONTROLLER    ======================
+# ======================   CONTROLLER    ======================
 # =============================================================
 # =============================================================
 

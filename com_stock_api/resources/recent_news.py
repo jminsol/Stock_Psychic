@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from http.client import IncompleteRead
 from unicodedata import normalize
 from newspaper import Article
+from sqlalchemy import and_,or_,func
+
 
 
 
@@ -64,25 +66,21 @@ class RecentNewsVo:
     headline: str = ''
     content: str = ''
 
+Session = openSession()
+session = Session()
 class RecentNewsDao(RecentNewsDto):
 
-    @classmethod
-    def count(cls):
-        return cls.query.count()
+    @staticmethod
+    def count():
+        return session.query(func.count(RecentNewsDto.id)).one()
 
     @classmethod
     def find_all(cls):
         return cls.query.all()
 
-    @classmethod
-    def find_by_date(cls, date):
-        return cls.query.filer_by(date == date).all()
-
     @staticmethod   
-    def insert_many():
+    def bulk():
         service = RecentNewsPro()
-        Session = openSession()
-        session = Session()
         dfs = service.hook()
         for i in dfs:
             print(i.head())
@@ -100,6 +98,21 @@ class RecentNewsDao(RecentNewsDto):
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
+
+    
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.date.like(date), RecentNewsDto.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        return session.query(RecentNewsDto).filter(RecentNewsDto.ticker.ilike(tic))
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),RecentNewsDto.date.in_([start_date,end_date])))
+    @classmethod
+    def find_today_one(cls, tic):
+        today = datetime.today()
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),RecentNewsDto.date.like(today)))
 
 
 # =============================================================

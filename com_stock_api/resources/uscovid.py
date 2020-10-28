@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine
 import pandas as pd
 import os
+from sqlalchemy import and_,or_,func
+
 
 
 class USCovidDto(db.Model):
@@ -40,25 +42,21 @@ class USCovidDto(db.Model):
             'ca_cases' : self.ca_cases,
             'ca_deaths' : self.ca_death,
         }
+Session = openSession()
+session = Session()
 
 class USCovidDao(USCovidDto):
 
-    @classmethod
-    def count(cls):
-        return cls.query.count()
+    @staticmethod
+    def count():
+        return session.query(func.count(USCovidDto.id)).one()
 
     @classmethod
     def find_all(cls):
         return cls.query.all()
 
-    @classmethod
-    def find_by_date(cls, date):
-        return cls.query.filer_by(date == date).all()
-
     @staticmethod
-    def insert_many():
-        Session = openSession()
-        session = Session()
+    def bulk():
         path = os.path.abspath(__file__+"/.."+"/data/")
         file_name = 'covid.csv'
         input_file = os.path.join(path,file_name)
@@ -68,8 +66,13 @@ class USCovidDao(USCovidDto):
         session.commit()
         session.close()
 
-# covid = USCovidDao()
-# covid.insert_many()
+    @classmethod
+    def find_by_date(cls, date):
+        return session.query(USCovidDto).filter(USCovidDto.date.like(date))
+
+    @classmethod
+    def find_by_period(cls,start_date, end_date):
+        return session.query(USCovidDto).filter(USCovidDto.date.in_([start_date,end_date]))
 
 # =============================================================
 # =============================================================

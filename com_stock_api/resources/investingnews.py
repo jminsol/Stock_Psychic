@@ -14,6 +14,8 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 import csv
 from flask_restful import Resource, reqparse
+from sqlalchemy import and_,or_,func
+
 
 
 class InvestingDto(db.Model):
@@ -24,7 +26,7 @@ class InvestingDto(db.Model):
     id: int = db.Column(db.Integer, primary_key = True, index = True)
     date : str = db.Column(db.Date)
     ticker : str = db.Column(db.String(30)) #stock symbol
-    link : str = db.Column(db.String(30))
+    link : str = db.Column(db.String(225))
     headline : str = db.Column(db.String(255))
     neg : float = db.Column(db.Float)
     pos : float = db.Column(db.Float)
@@ -72,11 +74,14 @@ class InvestingVo:
     neu: float = 0.0
     compound: float = 0.0
 
+Session = openSession()
+session = Session()
+
 class InvestingDao(InvestingDto):
 
-    @classmethod
-    def count(cls):
-        return cls.query.count()
+    @staticmethod
+    def count():
+        return session.query(func.count(InvestingDto.id)).one()
 
     @classmethod
     def find_all(cls):
@@ -87,9 +92,7 @@ class InvestingDao(InvestingDto):
         return cls.query.filer_by(date == date).all()
 
     @staticmethod   
-    def insert_many():
-        Session = openSession()
-        session = Session()
+    def bulk():
         tickers = ['AAPL', 'TSLA']
         for tic in tickers:
             path = os.path.abspath(__file__+"/.."+"/data/")
@@ -112,6 +115,18 @@ class InvestingDao(InvestingDto):
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
+
+    
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query(InvestingDto).filter(and_(InvestingDto.date.like(date), InvestingDto.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        return session.query(InvestingDto).filter(InvestingDto.ticker.ilike(tic))
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(InvestingDto).filter(and_(InvestingDto.ticker.ilike(tic) ,InvestingDto.date.in_([start_date,end_date])))
+
 
 
 # =============================================================

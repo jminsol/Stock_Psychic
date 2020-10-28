@@ -5,7 +5,9 @@ from sqlalchemy import create_engine
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from pandas_datareader import data as pdr
 import yfinance as yf
+yf.pdr_override() 
 from datetime import datetime, timedelta
 
 
@@ -112,11 +114,49 @@ class NasdaqStockDao(NasdaqStockDto):
 class NasdaqStockPro:
     tickers : str = ['AAPL', 'TSLA']
     ticker : str
-    start_date: str = '2020-07-01'
-    end_date: str = ''
+    START_DATE: str = '2020-07-01'
+    END_DATE: str = datetime.now()
 
     def __init__(self):
         self.ticker = ''
+        
+    def hook(self):
+        histories = []
+        for t in self.tickers:
+            self.ticker = t
+            history = self.saved_to_csv(self.get_history())
+            histories.append(self.process_dataframe(history))
+        return histories
+
+    def get_history(self):
+        data = pdr.get_data_yahoo(self.ticker, start=self.START_DATE, end=self.END_DATE)
+        return data
+
+    def get_history_by_date(self, start, end):
+        data = pdr.get_data_yahoo(self.ticker, start=start, end=end)
+        return data
+    
+    def get_file_path(self):
+        path = os.path.abspath(__file__+"/.."+"/data/")
+        file_name = self.ticker + '_now.csv'
+        return os.path.join(path,file_name)
+
+    def process_dataframe(self, df):
+        # d = {"date":df['Date'], "open": df['Open'], "high": df['High'], "low": df['Low'],"close": df['Close'],"adjclose": df['Adj Close'],"volume": df['Volume']}
+        input_file = self.get_file_path()
+        print("input file: ", input_file)
+        data = pd.read_csv(input_file)
+        data.rename(columns = {'Date' : 'date', 'Open':'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Adj Close' :'adjclose', 'Volume':'volume'}, inplace = True)
+        data.insert(loc=0, column='ticker', value=self.ticker)
+        
+        output_file = self.get_file_path()
+        data.to_csv(output_file)
+        return data
+
+    def saved_to_csv(self, data):
+        output_file = self.get_file_path()
+        data.to_csv(output_file)
+
 # =============================================================
 # =============================================================
 # ======================      CONTROLLER    ======================
