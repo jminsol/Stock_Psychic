@@ -2,7 +2,7 @@ from flask_restful import Resource, reqparse
 from com_stock_api.ext.db import db, openSession
 from com_stock_api.resources.uscovid import USCovidDto
 from com_stock_api.resources.investingnews import InvestingDto
-from com_stock_api.resources.yhfinance import NasdaqPredictionD
+from com_stock_api.resources.yhfinance import YHFinanceDto
 from sqlalchemy import and_,or_,func, extract
 import os
 import pandas as pd
@@ -24,7 +24,7 @@ class NasdaqPredictionDto(db.Model):
     date: str = db.Column(db.Date)
     pred_price: float = db.Column(db.Float)
     
-    stock_id: int = db.Column(db.Integer, db.ForeignKey(NasdaqPredictionD.id))
+    stock_id: int = db.Column(db.Integer, db.ForeignKey(YHFinanceDto.id))
     covid_id : int = db.Column(db.Integer, db.ForeignKey(USCovidDto.id))
     news_id: int = db.Column(db.Integer, db.ForeignKey(InvestingDto.id))
 
@@ -138,7 +138,7 @@ class NasdaqPredictionDao(NasdaqPredictionDto):
         
     @classmethod
     def find_by_period(cls,tic, start_date, end_date):
-        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),NasdaqPredictionDto.date.in_([start_date,end_date])))
+        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),date__range=(start_date, end_date)))
     @classmethod
     def find_today_one(cls, tic):
         today = datetime.today()

@@ -31,8 +31,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 api = Api(app)
 
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 with app.app_context():
     count1 = USCovidDao.count()
     print(f'US Covid case Total Count is {count1[0]}')
@@ -53,6 +53,11 @@ with app.app_context():
     print(f'Recent news Total Count is {count4[0]}')
     if count4[0] == 0:
         RecentNewsDao.bulk()
+
+    count5 = NasdaqPredictionDao.count()
+    print(f'Nasdap Prediction Total Count is {count5}')
+    if count5 == 0:
+        NasdaqPredictionDao.bulk()
 
     count = MemberDao.count()
     print(f'Members Total Count is {count}')

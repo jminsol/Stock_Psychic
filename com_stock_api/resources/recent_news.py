@@ -15,109 +15,7 @@ from http.client import IncompleteRead
 from unicodedata import normalize
 from newspaper import Article
 from sqlalchemy import and_,or_,func
-
-
-
-
-class RecentNewsDto(db.Model):
-    __tablename__ = 'Recent_News'
-    __table_args__={'mysql_collate':'utf8_general_ci'}
-    id: int = db.Column(db.Integer, primary_key = True, index = True)
-    date: str = db.Column(db.Date)
-    time: str = db.Column(db.Time())
-    ticker: str = db.Column(db.String(30))
-    link: str = db.Column(db.String(30))
-    headline: str = db.Column(db.String(225))
-    image: str = db.Column(db.Text)
-    content : str = db.Column(db.Text)
-    #date format : YYYY-MM-DD
-    
-    def __init__(self, date, time, ticker, link, headline, image, content):
-        self.date = date
-        self.time = time
-        self.ticker = ticker
-        self.link = link
-        self.headline = headline
-        self.image = image
-        self.content = content
-
-    def __repr__(self):
-        return f'RecentNews(id=\'{self.id}\', date=\'{self.date}\', time=\'{self.time}\',\
-            ticker=\'{self.ticker}\',link=\'{self.link}\', headline=\'{self.headline}\'\
-                image=\'{self.image}\', content=\'{self.content}\')'
-
-
-    @property
-    def json(self):
-        return {
-            'id' : self.id,
-            'date' : self.date,
-            'time' : self.time,
-            'ticker' : self.ticker,
-            'link' : self.link,
-            'headline' : self.headline,
-            'image' : self.image,
-            'content' : self.content
-        }
-
-class RecentNewsVo:
-    id: int = 0
-    date: str = ''
-    time : str = ''
-    ticker: str = ''
-    link: str = ''
-    headline: str = ''
-    image: str = ''
-    content: str = ''
-
-Session = openSession()
-session = Session()
-class RecentNewsDao(RecentNewsDto):
-
-    @staticmethod
-    def count():
-        return session.query(func.count(RecentNewsDto.id)).one()
-
-    @classmethod
-    def find_all(cls):
-        return cls.query.all()
-
-    @staticmethod   
-    def bulk():
-        service = RecentNewsPro()
-        dfs = service.hook()
-        for i in dfs:
-            print(i.head())
-            session.bulk_insert_mappings(RecentNewsDto, i.to_dict(orient="records"))
-            session.commit()
-        session.close()
-
-    @staticmethod
-    def save(news):
-        db.session.add(news)
-        db.session.commit()
-
-    @staticmethod
-    def delete(cls, id):
-        data = cls.query.get(id)
-        db.session.delete(data)
-        db.session.commit()
-
-    
-    @classmethod
-    def find_by_date(cls, date, tic):
-        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.date.like(date), RecentNewsDto.ticker.ilike(tic)))
-    @classmethod
-    def find_by_ticker(cls, tic):
-        return session.query(RecentNewsDto).filter(RecentNewsDto.ticker.ilike(tic))
-    @classmethod
-    def find_by_period(cls,tic, start_date, end_date):
-        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),RecentNewsDto.date.in_([start_date,end_date])))
-    @classmethod
-    def find_today_one(cls, tic):
-        today = datetime.today()
-        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),RecentNewsDto.date.like(today)))
-
+import json
 
 # =============================================================
 # =============================================================
@@ -260,7 +158,119 @@ class RecentNewsPro:
 
 # =============================================================
 # =============================================================
-# ======================      CONTROLLER    ======================
+# ===================      Modeling    =======================
+# =============================================================
+# =============================================================
+
+class RecentNewsDto(db.Model):
+    __tablename__ = 'Recent_News'
+    __table_args__={'mysql_collate':'utf8_general_ci'}
+    id: int = db.Column(db.Integer, primary_key = True, index = True)
+    date: str = db.Column(db.Date)
+    time: str = db.Column(db.Time())
+    ticker: str = db.Column(db.String(30))
+    link: str = db.Column(db.String(30))
+    headline: str = db.Column(db.String(225))
+    image: str = db.Column(db.Text)
+    content : str = db.Column(db.Text)
+    #date format : YYYY-MM-DD
+    
+    def __init__(self, date, time, ticker, link, headline, image, content):
+        self.date = date
+        self.time = time
+        self.ticker = ticker
+        self.link = link
+        self.headline = headline
+        self.image = image
+        self.content = content
+
+    def __repr__(self):
+        return f'RecentNews(id=\'{self.id}\', date=\'{self.date}\', time=\'{self.time}\',\
+            ticker=\'{self.ticker}\',link=\'{self.link}\', headline=\'{self.headline}\'\
+                image=\'{self.image}\', content=\'{self.content}\')'
+
+
+    @property
+    def json(self):
+        return {
+            'id' : self.id,
+            'date' : self.date,
+            'time' : self.time,
+            'ticker' : self.ticker,
+            'link' : self.link,
+            'headline' : self.headline,
+            'image' : self.image,
+            'content' : self.content
+        }
+
+class RecentNewsVo:
+    id: int = 0
+    date: str = ''
+    time : str = ''
+    ticker: str = ''
+    link: str = ''
+    headline: str = ''
+    image: str = ''
+    content: str = ''
+
+Session = openSession()
+session = Session()
+class RecentNewsDao(RecentNewsDto):
+
+    @staticmethod
+    def count():
+        return session.query(func.count(RecentNewsDto.id)).one()
+
+    @classmethod
+    def find_all(cls):
+        return cls.query.all()
+
+    @staticmethod   
+    def bulk():
+        service = RecentNewsPro()
+        dfs = service.hook()
+        for i in dfs:
+            print(i.head())
+            session.bulk_insert_mappings(RecentNewsDto, i.to_dict(orient="records"))
+            session.commit()
+        session.close()
+
+    @staticmethod
+    def save(news):
+        db.session.add(news)
+        db.session.commit()
+
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+
+    
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.date.like(date), RecentNewsDto.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        return session.query(RecentNewsDto).filter(RecentNewsDto.ticker.ilike(tic))
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),date__range=(start_date, end_date)))
+    @classmethod
+    def find_today_one(cls, tic):
+        today = datetime.today()
+        return session.query(RecentNewsDto).filter(and_(RecentNewsDto.ticker.ilike(tic),RecentNewsDto.date.like(today)))
+
+    @classmethod
+    def find_all_by_ticker(cls, stock):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        df = df[df['ticker']==stock.ticker]
+        return json.loads(df.to_json(orient='records'))
+
+# =============================================================
+# =============================================================
+# ======================   RESOURCING    ======================
 # =============================================================
 # =============================================================
 parser = reqparse.RequestParser()
@@ -286,21 +296,27 @@ class RecentNews(Resource):
         except:
             return {'message': 'An error occured inserting recent news'}, 500
         return recent_news.json(), 201
-        
-    
+          
     @staticmethod
-    def get(self, id):
-        recent_news = RecentNewsDao.find_by_id(id)
-        if recent_news:
-            return recent_news.json()
-        return {'message': 'the news not found'}, 404
+    def get(self, ticker):
+        args = parser.parse_args()
+        print("=====recent_news.py / recent_news' get")
+        stock = RecentNewsVo
+        stock.ticker = ticker
+        data = RecentNewsDao.find_all_by_ticker(stock)
+        return data, 200
 
     @staticmethod
     def put(self, id):
         data = RecentNews.parser.parse_args()
         stock = RecentNewsDao.find_by_id(id)
 
+        stock.date = data['date']
+        stock.time = data['time']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
         stock.headline = data['headline']
+        stock.image = data['image']
         stock.content = data['content']
         stock.save()
         return stock.json()

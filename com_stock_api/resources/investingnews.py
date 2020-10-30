@@ -15,119 +15,7 @@ import matplotlib.pyplot as plt
 import csv
 from flask_restful import Resource, reqparse
 from sqlalchemy import and_,or_,func
-
-
-
-class InvestingDto(db.Model):
-    __tablename__ = 'Investing_News'
-    __table_args__={'mysql_collate':'utf8_general_ci'}
-        # , primary_key = True, index = True
-
-    id: int = db.Column(db.Integer, primary_key = True, index = True)
-    date : str = db.Column(db.Date)
-    ticker : str = db.Column(db.String(30)) #stock symbol
-    link : str = db.Column(db.String(225))
-    headline : str = db.Column(db.String(255))
-    neg : float = db.Column(db.Float)
-    pos : float = db.Column(db.Float)
-    neu : float = db.Column(db.Float)
-    compound :float  = db.Column(db.Float)
-
-    def __init__(self, date, ticker, link, headline, neg, pos, neu, compound):
-        self.date = date
-        self.ticker = ticker
-        self.link = link
-        self.headline = headline
-        self.neg = neg
-        self.pos = pos
-        self.neu = neu
-        self.compound = compound
-
-    def __repr__(self):
-        return f'Investing(id=\'{self.id}\', date=\'{self.date}\',ticker=\'{self.ticker}\',\
-                link=\'{self.link}\', headline=\'{self.headline}\',neg=\'{self.neg}\', \
-                pos=\'{self.pos}\',neu=\'{self.neu}\', compound=\'{self.compound}\',)'
-
-
-    @property
-    def json(self):
-        return {
-            'id': self.id,
-            'date' : self.date,
-            'ticker' : self.ticker,
-            'link' : self.link,
-            'headline' : self.headline,
-            'neg' : self.neg,
-            'pos' : self.pos,
-            'neu' : self.neu,
-            'compound' : self.compound
-        }
-
-class InvestingVo:
-    id: int = 0
-    date: str = ''
-    ticker: str = ''
-    link: str = ''
-    headline: str = ''
-    neg: float = 0.0
-    pos: float = 0.0
-    neu: float = 0.0
-    compound: float = 0.0
-
-Session = openSession()
-session = Session()
-
-class InvestingDao(InvestingDto):
-
-    @staticmethod
-    def count():
-        return session.query(func.count(InvestingDto.id)).one()
-
-    @classmethod
-    def find_all(cls):
-        return cls.query.all()
-
-    @classmethod
-    def find_by_date(cls, date):
-        return cls.query.filer_by(date == date).all()
-
-    @staticmethod   
-    def bulk():
-        tickers = ['AAPL', 'TSLA']
-        for tic in tickers:
-            path = os.path.abspath(__file__+"/.."+"/data/")
-            file_name = tic + '_sentiment.csv'
-            input_file = os.path.join(path,file_name)
-
-            df = pd.read_csv(input_file)
-            print(df.head())
-            session.bulk_insert_mappings(InvestingDto, df.to_dict(orient="records"))
-            session.commit()
-        session.close()
-
-    @staticmethod
-    def save(news):
-        db.session.add(news)
-        db.session.commit()
-
-    @staticmethod
-    def delete(cls, id):
-        data = cls.query.get(id)
-        db.session.delete(data)
-        db.session.commit()
-
-    
-    @classmethod
-    def find_by_date(cls, date, tic):
-        return session.query(InvestingDto).filter(and_(InvestingDto.date.like(date), InvestingDto.ticker.ilike(tic)))
-    @classmethod
-    def find_by_ticker(cls, tic):
-        return session.query(InvestingDto).filter(InvestingDto.ticker.ilike(tic))
-    @classmethod
-    def find_by_period(cls,tic, start_date, end_date):
-        return session.query(InvestingDto).filter(and_(InvestingDto.ticker.ilike(tic) ,InvestingDto.date.in_([start_date,end_date])))
-
-
+import json
 
 # =============================================================
 # =============================================================
@@ -295,7 +183,129 @@ if __name__=='__main__':
 
 # =============================================================
 # =============================================================
-# ======================      CONTROLLER    ======================
+# ======================    MODELING    =======================
+# =============================================================
+# =============================================================
+
+class InvestingDto(db.Model):
+    __tablename__ = 'Investing_News'
+    __table_args__={'mysql_collate':'utf8_general_ci'}
+        # , primary_key = True, index = True
+
+    id: int = db.Column(db.Integer, primary_key = True, index = True)
+    date : str = db.Column(db.Date)
+    ticker : str = db.Column(db.String(30)) #stock symbol
+    link : str = db.Column(db.String(225))
+    headline : str = db.Column(db.String(255))
+    neg : float = db.Column(db.Float)
+    pos : float = db.Column(db.Float)
+    neu : float = db.Column(db.Float)
+    compound :float  = db.Column(db.Float)
+
+    def __init__(self, date, ticker, link, headline, neg, pos, neu, compound):
+        self.date = date
+        self.ticker = ticker
+        self.link = link
+        self.headline = headline
+        self.neg = neg
+        self.pos = pos
+        self.neu = neu
+        self.compound = compound
+
+    def __repr__(self):
+        return f'Investing(id=\'{self.id}\', date=\'{self.date}\',ticker=\'{self.ticker}\',\
+                link=\'{self.link}\', headline=\'{self.headline}\',neg=\'{self.neg}\', \
+                pos=\'{self.pos}\',neu=\'{self.neu}\', compound=\'{self.compound}\',)'
+
+
+    @property
+    def json(self):
+        return {
+            'id': self.id,
+            'date' : self.date,
+            'ticker' : self.ticker,
+            'link' : self.link,
+            'headline' : self.headline,
+            'neg' : self.neg,
+            'pos' : self.pos,
+            'neu' : self.neu,
+            'compound' : self.compound
+        }
+
+class InvestingVo:
+    id: int = 0
+    date: str = ''
+    ticker: str = ''
+    link: str = ''
+    headline: str = ''
+    neg: float = 0.0
+    pos: float = 0.0
+    neu: float = 0.0
+    compound: float = 0.0
+
+Session = openSession()
+session = Session()
+
+class InvestingDao(InvestingDto):
+
+    @staticmethod
+    def count():
+        return session.query(func.count(InvestingDto.id)).one()
+
+    @classmethod
+    def find_all(cls):
+        return cls.query.all()
+
+    @classmethod
+    def find_by_date(cls, date):
+        return cls.query.filer_by(date == date).all()
+
+    @staticmethod   
+    def bulk():
+        tickers = ['AAPL', 'TSLA']
+        for tic in tickers:
+            path = os.path.abspath(__file__+"/.."+"/data/")
+            file_name = tic + '_sentiment.csv'
+            input_file = os.path.join(path,file_name)
+
+            df = pd.read_csv(input_file)
+            print(df.head())
+            session.bulk_insert_mappings(InvestingDto, df.to_dict(orient="records"))
+            session.commit()
+        session.close()
+
+    @staticmethod
+    def save(news):
+        db.session.add(news)
+        db.session.commit()
+
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+
+    
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query(InvestingDto).filter(and_(InvestingDto.date.like(date), InvestingDto.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        return session.query(InvestingDto).filter(InvestingDto.ticker.ilike(tic))
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(InvestingDto).filter(and_(InvestingDto.ticker.ilike(tic) ,date__range=(start_date, end_date)))
+
+    @classmethod
+    def find_all_by_ticker(cls, stock):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        df = df[df['ticker']==stock.ticker]
+        return json.loads(df.to_json(orient='records'))
+
+# =============================================================
+# =============================================================
+# ======================     CONTROLLER    ====================
 # =============================================================
 # =============================================================
 parser = reqparse.RequestParser()
@@ -321,23 +331,31 @@ class Investing(Resource):
 
         except:
             return {'message': 'An error occured inserting the news sentiment'}, 500
-        return news_sentiment.json(), 201
-        
+        return news_sentiment.json(), 201     
     
     @staticmethod
-    def get(self, id):
-        news_sentiment = InvestingDao.find_by_id(id)
-        if news_sentiment:
-            return news_sentiment.json()
-        return {'message': 'news sentiment not found'}, 404
+    def get(self, ticker):
+        print("=====investing.py / Investing's get")
+        args = parser.parse_args()
+        stock = InvestingVo()
+        stock.ticker = ticker
+        data = InvestingDao.find_all_by_ticker(stock)
+        return data, 200
 
     @staticmethod
     def put(self, id):
         data = Investing.parser.parse_args()
         stock = InvestingDao.find_by_id(id)
 
-        stock.title = data['title']
-        stock.content = data['content']
+        stock.date = data['date']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
+        stock.headline = data['headline']
+        stock.neg = data['neg']
+        stock.pos = data['pos']
+        stock.neu = data['neu']
+        stock.compound = data['compound']
+
         stock.save()
         return stock.json()
 

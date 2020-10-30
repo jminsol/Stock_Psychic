@@ -9,7 +9,7 @@ import pandas as pd
 import os
 import json
 from sqlalchemy import and_,or_,func
-from datetime import datetime
+from datetime import datetime, date
 from pandas_datareader import data as pdr
 import yfinance as yf
 yf.pdr_override() 
@@ -189,7 +189,7 @@ class YHFinanceDao(YHFinanceDto):
         
     @classmethod
     def find_by_period(cls,tic, start_date, end_date):
-        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),YHFinanceDto.date.in_([start_date,end_date])))
+        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),date__range=(start_date, end_date)))
     @classmethod
     def find_today_one(cls, tic):
         today = datetime.today()

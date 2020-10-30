@@ -5,74 +5,8 @@ from sqlalchemy import create_engine
 import pandas as pd
 import os
 from sqlalchemy import and_,or_,func
+import json
 
-
-
-class USCovidDto(db.Model):
-    __tablename__ = 'US_Covid_cases'
-    __table_args__={'mysql_collate':'utf8_general_ci'}
-    id: int = db.Column(db.Integer, primary_key = True, index = True)
-    date: str = db.Column(db.Date)
-    total_cases: int = db.Column(db.Integer)
-    total_deaths: int = db.Column(db.Integer)
-    ca_cases : int = db.Column(db.Integer)
-    ca_deaths: int = db.Column(db.Integer)
-    #date format : YYYY-MM-DD
-    
-    def __init__(self, date, total_cases, total_deaths, ca_cases, ca_deaths):
-        self.date = date
-        self.total_cases = total_cases
-        self.total_deaths = total_deaths
-        self.ca_cases = ca_cases
-        self.ca_deaths = ca_deaths
-
-    def __repr__(self):
-        return f'USCovid(id=\'{self.id}\', date=\'{self.date}\', total_cases=\'{self.total_cases}\',\
-            total_deaths=\'{self.total_deaths}\',ca_cases=\'{self.ca_cases}\', \
-                ca_deaths=\'{self.ca_deaths}\')'
-
-
-    @property
-    def json(self):
-        return {
-            'id' : self.id,
-            'date' : self.date,
-            'total_cases' : self.total_cases,
-            'total_deaths' : self.total_death,
-            'ca_cases' : self.ca_cases,
-            'ca_deaths' : self.ca_death,
-        }
-Session = openSession()
-session = Session()
-
-class USCovidDao(USCovidDto):
-
-    @staticmethod
-    def count():
-        return session.query(func.count(USCovidDto.id)).one()
-
-    @classmethod
-    def find_all(cls):
-        return cls.query.all()
-
-    @staticmethod
-    def bulk():
-        path = os.path.abspath(__file__+"/.."+"/data/")
-        file_name = 'covid.csv'
-        input_file = os.path.join(path,file_name)
-        df = pd.read_csv(input_file)
-        print(df.head())
-        session.bulk_insert_mappings(USCovidDto, df.to_dict(orient="records"))
-        session.commit()
-        session.close()
-
-    @classmethod
-    def find_by_date(cls, date):
-        return session.query(USCovidDto).filter(USCovidDto.date.like(date))
-
-    @classmethod
-    def find_by_period(cls,start_date, end_date):
-        return session.query(USCovidDto).filter(USCovidDto.date.in_([start_date,end_date]))
 
 # =============================================================
 # =============================================================
@@ -121,7 +55,105 @@ class USCovidPro :
 
 # =============================================================
 # =============================================================
-# ======================      CONTROLLER    ======================
+# =====================    MODELING      ======================
+# =============================================================
+# =============================================================
+
+class USCovidDto(db.Model):
+    __tablename__ = 'US_Covid_cases'
+    __table_args__={'mysql_collate':'utf8_general_ci'}
+    id: int = db.Column(db.Integer, primary_key = True, index = True)
+    date: str = db.Column(db.Date)
+    total_cases: int = db.Column(db.Integer)
+    total_deaths: int = db.Column(db.Integer)
+    ca_cases : int = db.Column(db.Integer)
+    ca_deaths: int = db.Column(db.Integer)
+    #date format : YYYY-MM-DD
+    
+    def __init__(self, date, total_cases, total_deaths, ca_cases, ca_deaths):
+        self.date = date
+        self.total_cases = total_cases
+        self.total_deaths = total_deaths
+        self.ca_cases = ca_cases
+        self.ca_deaths = ca_deaths
+
+    def __repr__(self):
+        return f'USCovid(id=\'{self.id}\', date=\'{self.date}\', total_cases=\'{self.total_cases}\',\
+            total_deaths=\'{self.total_deaths}\',ca_cases=\'{self.ca_cases}\', \
+                ca_deaths=\'{self.ca_deaths}\')'
+
+
+    @property
+    def json(self):
+        return {
+            'id' : self.id,
+            'date' : self.date,
+            'total_cases' : self.total_cases,
+            'total_deaths' : self.total_death,
+            'ca_cases' : self.ca_cases,
+            'ca_deaths' : self.ca_death,
+        }
+
+class USCovidVo:
+    id: int = 0
+    date: str = ''
+    total_cases: int = 0
+    total_deaths: int = 0
+    ca_cases: int = 0
+    ca_deaths: int = 0
+
+Session = openSession()
+session = Session()
+
+class USCovidDao(USCovidDto):
+
+    @staticmethod
+    def count():
+        return session.query(func.count(USCovidDto.id)).one()
+
+    @staticmethod
+    def save(data):
+        db.session.add(data)
+        db.session.commit()
+    @staticmethod
+    def update(data):
+        db.session.add(data)
+        db.session.commit()
+
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+
+    @staticmethod
+    def bulk():
+        path = os.path.abspath(__file__+"/.."+"/data/")
+        file_name = 'covid.csv'
+        input_file = os.path.join(path,file_name)
+        df = pd.read_csv(input_file)
+        print(df.head())
+        session.bulk_insert_mappings(USCovidDto, df.to_dict(orient="records"))
+        session.commit()
+        session.close()
+
+    @classmethod
+    def find_by_date(cls, date):
+        return session.query(USCovidDto).filter(USCovidDto.date.like(date))
+
+    @classmethod
+    def find_by_period(cls,start_date, end_date):
+        return session.query(USCovidDto).filter(date__range=(start_date, end_date))
+
+    @staticmethod
+    def find_all(cls):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
+
+# =============================================================
+# =============================================================
+# =====================    CONTROLLER    ======================
 # =============================================================
 # =============================================================
 
@@ -146,18 +178,27 @@ class USCovid(Resource):
         return uscovid.json(), 201
     
     
-    def get(self, id):
-        uscovid = USCovidDao.find_by_id(id)
+    def get(self, date):
+        uscovid = USCovidDao.find_by_id(date)
         if uscovid:
             return uscovid.json()
         return {'message': 'uscovid not found'}, 404
 
+    def fetch(self):
+        print("=====uscovid.py / uscovid's get")
+        cases = USCovidVo
+        stock.ticker = 'TSLA'
+        data = USCovidDao.find_all()
+        return data, 200
+
     def put(self, id):
         data = USCovid.parser.parse_args()
         uscovid = USCovidDao.find_by_id(id)
-
-        uscovid.title = data['title']
-        uscovid.content = data['content']
+        uscovid.date = data['date']
+        uscovid.total_cases = data['total_cases']
+        uscovid.total_deaths = data['total_deaths']
+        uscovid.ca_cases = data['ca_cases']
+        uscovid.ca_deaths = data['ca_deaths']
         uscovid.save()
         return uscovid.json()
 
