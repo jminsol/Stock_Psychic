@@ -677,3 +677,4 @@ class Access(Resource):
         print(f'password: {member.password}')
         data = MemberDao.login(member)
         return data[0], 200
+ 

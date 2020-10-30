@@ -1,10 +1,19 @@
 from flask_restful import Resource, reqparse
 from com_stock_api.ext.db import db, openSession
 from com_stock_api.resources.uscovid import USCovidDto
-from com_stock_api.resources.yhfinance import YHFinanceDto
 from com_stock_api.resources.investingnews import InvestingDto
+from com_stock_api.resources.yhfinance import NasdaqPredictionD
+from sqlalchemy import and_,or_,func, extract
 import os
 import pandas as pd
+import json
+from datetime import datetime
+
+# =============================================================
+# =============================================================
+# ===================      Modeling    =======================
+# =============================================================
+# =============================================================
 
 class NasdaqPredictionDto(db.Model):
     __tablename__ = 'NASDAQ_prediction'
@@ -15,7 +24,7 @@ class NasdaqPredictionDto(db.Model):
     date: str = db.Column(db.Date)
     pred_price: float = db.Column(db.Float)
     
-    stock_id: int = db.Column(db.Integer, db.ForeignKey(YHFinanceDto.id))
+    stock_id: int = db.Column(db.Integer, db.ForeignKey(NasdaqPredictionD.id))
     covid_id : int = db.Column(db.Integer, db.ForeignKey(USCovidDto.id))
     news_id: int = db.Column(db.Integer, db.ForeignKey(InvestingDto.id))
 
@@ -54,21 +63,50 @@ class NasdaqPredictionDto(db.Model):
         db.session.delete(self)
         db.session.commint()
 
+class NasdaqPredictionVo:
+    id: int = 0
+    ticker: str = ''
+    date : str = ''
+    pred_price: float = 0.0
+    stock_id : str = ''
+    covid_id : str = ''
+    news_id : str = ''
+
+
+Session = openSession()
+session = Session()
+
 
 class NasdaqPredictionDao(NasdaqPredictionDto):
 
-    @classmethod
-    def find_all(cls):
-        return cls.query.all()
+    @staticmethod
+    def count():
+        return session.query(func.count(NasdaqPredictionDto.id)).one()
 
-    @classmethod
-    def find_by_date(cls, date):
-        return cls.query.filer_by(date == date).all()
+    @staticmethod
+    def save(data):
+        db.session.add(data)
+        db.session.commit()
+    @staticmethod
+    def update(data):
+        db.session.add(data)
+        db.session.commit()
+
+    @staticmethod
+    def delete(cls, id):
+        data = cls.query.get(id)
+        db.session.delete(data)
+        db.session.commit()
+        
+    @staticmethod
+    def find_all(cls):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
+
 
     @staticmethod   
-    def insert_many():
-        Session = openSession()
-        session = Session()
+    def bulk():
         tickers = ['AAPL', 'TSLA']
         for tic in tickers:
             path = os.path.abspath(__file__+"/.."+"/data/")
@@ -81,10 +119,35 @@ class NasdaqPredictionDao(NasdaqPredictionDto):
             session.commit()
         session.close()
 
+    @classmethod
+    def find_all_by_ticker(cls, stock):
+        sql = cls.query
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        df = df[df['ticker']==stock.ticker]
+        return json.loads(df.to_json(orient='records'))
+
+    
+    @classmethod
+    def find_by_date(cls, date, tic):
+        return session.query.filter(and_(cls.date.like(date), cls.ticker.ilike(tic)))
+    @classmethod
+    def find_by_ticker(cls, tic):
+        print("In find_by_ticker")
+   
+        return session.query(NasdaqPredictionDto).filter((NasdaqPredictionDto.ticker.ilike(tic))).order_by(NasdaqPredictionDto.date).all()
+        
+    @classmethod
+    def find_by_period(cls,tic, start_date, end_date):
+        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),NasdaqPredictionDto.date.in_([start_date,end_date])))
+    @classmethod
+    def find_today_one(cls, tic):
+        today = datetime.today()
+        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),NasdaqPredictionDto.date.like(today)))
+
 
 # =============================================================
 # =============================================================
-# ======================      CONTROLLER    ======================
+# ===================      Resourcing    ======================
 # =============================================================
 # =============================================================
 
@@ -129,3 +192,44 @@ class NasdaqPredictions(Resource):
     def get(self):
         return {'predictions': list(map(lambda article: article.json(), NasdaqPredictionDao.find_all()))}
         # return {'articles':[article.json() for article in ArticleDao.find_all()]}
+
+class TeslaPredGraph(Resource):
+
+    @staticmethod
+    def get():
+        print("=====nasdaq_prediction.py / TeslPredaGraph's get")
+        stock = NasdaqPredictionVo
+        stock.ticker = 'TSLA'
+        data = NasdaqPredictionDao.find_all_by_ticker(stock)
+        return data, 200
+
+
+    @staticmethod
+    def post():
+        print("=====nasdaq_prediction.py / TeslaPredGraph's post")
+        args = parser.parse_args()
+        stock = NasdaqPredictionVo
+        stock.ticker = args.ticker
+        data = NasdaqPredictionDao.find_all_by_ticker(stock)
+        return data[0], 200
+        
+class ApplePredGraph(Resource):
+
+    @staticmethod
+    def get():
+        print("=====nasdaq_prediction.py / ApplePredGraph's get")
+        stock = NasdaqPredictionVo
+        stock.ticker = 'AAPL'
+        data = NasdaqPredictionDao.find_all_by_ticker(stock)
+        return data, 200
+
+
+    @staticmethod
+    def post():
+        print("=====nasdaq_prediction.py / ApplePredGraph's post")
+        args = parser.parse_args()
+        stock = NasdaqPredictionVo()
+        stock.ticker = args.ticker
+        print("TICKER: " , stock.ticker)
+        data = NasdaqPredictionDao.find_all_by_ticker(stock)
+        return data[0], 200

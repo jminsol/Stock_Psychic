@@ -28,21 +28,23 @@ class RecentNewsDto(db.Model):
     ticker: str = db.Column(db.String(30))
     link: str = db.Column(db.String(30))
     headline: str = db.Column(db.String(225))
+    image: str = db.Column(db.Text)
     content : str = db.Column(db.Text)
     #date format : YYYY-MM-DD
     
-    def __init__(self, date, time, ticker, link, headline, content):
+    def __init__(self, date, time, ticker, link, headline, image, content):
         self.date = date
         self.time = time
         self.ticker = ticker
         self.link = link
         self.headline = headline
+        self.image = image
         self.content = content
 
     def __repr__(self):
         return f'RecentNews(id=\'{self.id}\', date=\'{self.date}\', time=\'{self.time}\',\
-            ticker=\'{self.ticker}\',link=\'{self.link}\', \
-                headline=\'{self.headline}\', content=\'{self.content}\')'
+            ticker=\'{self.ticker}\',link=\'{self.link}\', headline=\'{self.headline}\'\
+                image=\'{self.image}\', content=\'{self.content}\')'
 
 
     @property
@@ -54,6 +56,7 @@ class RecentNewsDto(db.Model):
             'ticker' : self.ticker,
             'link' : self.link,
             'headline' : self.headline,
+            'image' : self.image,
             'content' : self.content
         }
 
@@ -64,6 +67,7 @@ class RecentNewsVo:
     ticker: str = ''
     link: str = ''
     headline: str = ''
+    image: str = ''
     content: str = ''
 
 Session = openSession()
@@ -159,6 +163,7 @@ class RecentNewsPro:
         processed_data = []
         
         for i, row in enumerate(df):
+            #Basic given information from finviz.com
             headline = row.a.text
             time = row.td.text
             time = time.strip()
@@ -168,19 +173,29 @@ class RecentNewsPro:
             date_time = self.get_published_datetime(time)
             published_date = date_time[0] if (date_time[0]!=0) else (processed_data[-1][0])
             published_time = date_time[1]
-            
-            #Get news content
+           
+            #Get news content by using links from finviz
             if "https://finance.yahoo.com/news" in link:
-                content=self.get_yahoo_news(link)
+                page = self.get_yahoo_page(link)
+                content=self.get_yahoo_news(page)
+                image = self.get_yahoo_image(page)
             else:
                 article = Article(link)
-                article.download()
-                article.parse()
-                content = self.clean_paragraph(article.text)
-                content = "".join(content)
+                try:
+                    article.download()
+                    
+                except article.ArticleException as e:
+                    print(e)
+                else:
+                    article.parse()
+                    content = self.clean_paragraph(article.text)
+                    content = "".join(content)
+                
+                    image = article.top_image
           
-            #Scrap news data 
-            processed_data.append([published_date, published_time, self.ticker, link, headline, content])
+
+            #Collect news data in a list
+            processed_data.append([published_date, published_time, self.ticker, link, headline, image, content[:200]+'...'])
             
             if (datetime.strptime(published_date, '%Y-%m-%d') < recent):
                 processed_data.pop()
@@ -202,16 +217,22 @@ class RecentNewsPro:
 
         return publish_date, pub_time
 
-    def get_yahoo_news(self, link):
+    def get_yahoo_page(self, link):
         request = Request(link, headers={"User-Agent": "Mozilla/5.0"})
         content = urlopen(request).read()
-        page= bs(content, 'lxml')
+        return bs(content, 'lxml')
 
+
+    def get_yahoo_news(self, page):
         text_tag = page.find('div', attrs={'class': 'caas-body'})
         paragraphs = text_tag.find_all('p')
         text = '\n'.join([self.clean_paragraph(p.get_text()) for p in paragraphs[:-1]])
         text = "".join(text)
         return text
+
+    def get_yahoo_image(self, page):
+        image_tags = page.find_all(attrs={'caas-img'})
+        return image_tags[-1].get('src')
 
     def clean_paragraph(self, paragraph):
         paragraph = re.sub(r'\(http\S+', '', paragraph)
@@ -220,7 +241,7 @@ class RecentNewsPro:
         return normalize('NFKD', paragraph)    
 
     def save_news(self, data):
-        col = ['date', 'time', 'ticker', 'link', 'headline', 'content']
+        col = ['date', 'time', 'ticker', 'link', 'headline', 'image', 'content']
         df = pd.DataFrame(data, columns=col)
         path = os.path.abspath(__file__+"/.."+"/saved_data/")
         file_name = self.ticker + '_recent_news.csv'
@@ -229,19 +250,14 @@ class RecentNewsPro:
         print("Completed saving ", file_name)
     
     def df_processing(self, data):
-        col = ['date', 'time', 'ticker', 'link', 'headline', 'content']
+        col = ['date', 'time', 'ticker', 'link', 'headline', 'image','content']
         df = pd.DataFrame(data, columns=col)
         return df
-'''
-if __name__=='__main__':
-    news_pro = RecentNewsPro('TSLA')
-    news_pro2 = RecentNewsPro('AAPL')
 
-    news_pro.hook()
-    news_pro2.hook()
+# if __name__=='__main__':
+#     news_pro = RecentNewsPro()
+#     news_pro.hook()
 
-'''
-# 'date', 'time', 'ticker', 'link', 'headline', 'content'
 # =============================================================
 # =============================================================
 # ======================      CONTROLLER    ======================
@@ -254,6 +270,7 @@ parser.add_argument('time', type=str, required=False, help='This field cannot be
 parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
 parser.add_argument('link', type=str, required=False, help='This field cannot be left blank')
 parser.add_argument('headline', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('image', type=str, required=False, help='This field cannot be left blank')
 parser.add_argument('content', type=str, required=False, help='This field cannot be left blank')
 
 class RecentNews(Resource):
@@ -261,7 +278,7 @@ class RecentNews(Resource):
     @staticmethod
     def post():
         data = parser.parse_args()
-        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['content'])
+        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['image'], data['content'])
         try: 
             recent_news.save(data)
             return {'code' : 0, 'message' : 'SUCCESS'}, 200

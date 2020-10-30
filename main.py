@@ -7,7 +7,6 @@ from com_stock_api.resources.uscovid import USCovidDao
 from com_stock_api.resources.yhfinance import YHFinanceDao
 from com_stock_api.resources.investingnews import InvestingDao
 from com_stock_api.resources.recent_news import RecentNewsDao
-from com_stock_api.resources.nasdaq_stock import NasdaqStockDao
 
 from com_stock_api.resources.member import MemberDao
 from com_stock_api.resources.board import BoardDao
@@ -32,33 +31,28 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 api = Api(app)
 
-with app.app_context():
-    db.create_all()
+# with app.app_context():
+#     db.create_all()
 with app.app_context():
     count1 = USCovidDao.count()
-    print(f'US Covid case Total Count is {count1}')
-    if count1 == 0:
+    print(f'US Covid case Total Count is {count1[0]}')
+    if count1[0] == 0:
         USCovidDao.bulk()
 
     count2 = YHFinanceDao.count()
-    print(f'NASDAQ history data Total Count is {count2}')
-    if count2 == 0:
+    print(f'NASDAQ history data Total Count is {count2[0]}')
+    if count2[0] == 0:
         YHFinanceDao.bulk()
 
     count3 = InvestingDao.count()
-    print(f'Stock news Total Count is {count3}')
-    if count3 == 0:
+    print(f'Stock news Total Count is {count3[0]}')
+    if count3[0] == 0:
         InvestingDao.bulk()
 
     count4 = RecentNewsDao.count()
-    print(f'Recent news Total Count is {count4}')
-    if count4 == 0:
+    print(f'Recent news Total Count is {count4[0]}')
+    if count4[0] == 0:
         RecentNewsDao.bulk()
-
-    count5 = NasdaqStockDao.count()
-    print(f'NASDAQ Stock Total Count is {count5}')
-    if count5 == 0:
-        NasdaqStockDao.bulk()
 
     count = MemberDao.count()
     print(f'Members Total Count is {count}')
