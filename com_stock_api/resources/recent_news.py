@@ -82,7 +82,7 @@ class RecentNewsPro:
                 try:
                     article.download()
                     
-                except article.ArticleException as e:
+                except newspaper.article.ArticleException as e:
                     print(e)
                 else:
                     article.parse()
