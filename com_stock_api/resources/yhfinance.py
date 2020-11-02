@@ -84,7 +84,7 @@ class YHFinanceDto(db.Model):
     low : float = db.Column(db.Float)
     close : float = db.Column(db.Float)
     adjclose : float = db.Column(db.Float)
-    volume : int = db.Column(db.Integer)
+    volume : int = db.Column(db.BigInteger)
     #date format : YYYY-MM-DD
     # amount : unit = million 
     

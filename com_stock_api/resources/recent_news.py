@@ -169,7 +169,7 @@ class RecentNewsDto(db.Model):
     date: str = db.Column(db.Date)
     time: str = db.Column(db.Time())
     ticker: str = db.Column(db.String(30))
-    link: str = db.Column(db.String(30))
+    link: str = db.Column(db.Text)
     headline: str = db.Column(db.String(225))
     image: str = db.Column(db.Text)
     content : str = db.Column(db.Text)

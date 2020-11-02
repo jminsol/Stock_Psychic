@@ -2,6 +2,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects import registry
+import mysql.connector
+import sqlalchemy.dialects.sqlite
+import pymysql
 
 db = SQLAlchemy()
 
@@ -15,6 +19,7 @@ config = {
 }
 
 # AWS DB
+
 '''
 config = {
     'user' : 'stockpsychic',
@@ -24,10 +29,10 @@ config = {
     'database' : 'stockpsychic'
 }
 '''
-
+# registry.register('mysql.mysqlconnector', 'mysqlconnector', 'dialect')
 charset = {'utf8':'utf8'}
 Base = declarative_base()
-url = f"mysql+mysqlconnector://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}?charset=utf8"
+url = f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}?charset=utf8"
 engine = create_engine(url)
 
 def openSession():

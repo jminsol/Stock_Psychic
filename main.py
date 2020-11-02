@@ -9,11 +9,11 @@ from com_stock_api.resources.investingnews import InvestingDao
 from com_stock_api.resources.recent_news import RecentNewsDao
 
 from com_stock_api.resources.member import MemberDao
-from com_stock_api.resources.board import BoardDao
-from com_stock_api.resources.comment import CommentDao
-from com_stock_api.resources.member_churn_pred import MemberChurnPredDao
-from com_stock_api.resources.recommend_stock import RecommendStockDao
-from com_stock_api.resources.trading import TradingDao
+# from com_stock_api.resources.board import BoardDao
+# from com_stock_api.resources.comment import CommentDao
+# from com_stock_api.resources.member_churn_pred import MemberChurnPredDao
+# from com_stock_api.resources.recommend_stock import RecommendStockDao
+# from com_stock_api.resources.trading import TradingDao
 
 from flask_cors import CORS
 
@@ -40,7 +40,7 @@ with app.app_context():
         USCovidDao.bulk()
 
     count2 = YHFinanceDao.count()
-    print(f'NASDAQ history data Total Count is {count2[0]}')
+    print(f'YHFinance data Total Count is {count2[0]}')
     if count2[0] == 0:
         YHFinanceDao.bulk()
 
