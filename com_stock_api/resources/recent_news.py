@@ -321,6 +321,83 @@ class RecentNews(Resource):
         stock.save()
         return stock.json()
 
+class AppleNews(Resource):
+
+    @staticmethod
+    def post():
+        data = parser.parse_args()
+        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['image'], data['content'])
+        try: 
+            recent_news.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
+        except:
+            return {'message': 'An error occured inserting recent news'}, 500
+        return recent_news.json(), 201
+          
+    @staticmethod
+    def get(self, ticker):
+        args = parser.parse_args()
+        print("=====recent_news.py / recent_news' get")
+        stock = RecentNewsVo
+        stock.ticker = ticker
+        data = RecentNewsDao.find_all_by_ticker(stock)
+        return data, 200
+
+    @staticmethod
+    def put(self, id):
+        data = RecentNews.parser.parse_args()
+        stock = RecentNewsDao.find_by_id(id)
+
+        stock.date = data['date']
+        stock.time = data['time']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
+        stock.headline = data['headline']
+        stock.image = data['image']
+        stock.content = data['content']
+        stock.save()
+        return stock.json()
+
+class TeslaNews(Resource):
+
+    @staticmethod
+    def post():
+        data = parser.parse_args()
+        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['image'], data['content'])
+        try: 
+            recent_news.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
+        except:
+            return {'message': 'An error occured inserting recent news'}, 500
+        return recent_news.json(), 201
+          
+    @staticmethod
+    def get():
+        args = parser.parse_args()
+        print("=====recent_news.py / tesla_news' get")
+        stock = RecentNewsVo
+        stock.ticker = 'TSLA'
+        data = RecentNewsDao.find_all_by_ticker(stock)
+        return data, 200
+
+    @staticmethod
+    def put(self, id):
+        data = RecentNews.parser.parse_args()
+        stock = RecentNewsDao.find_by_id(id)
+
+        stock.date = data['date']
+        stock.time = data['time']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
+        stock.headline = data['headline']
+        stock.image = data['image']
+        stock.content = data['content']
+        stock.save()
+        return stock.json()
+
+
 class RecentNews_(Resource):
     def get(self):
         return {'Recent News list': list(map(lambda article: article.json(), RecentNewsDao.find_all()))}
