@@ -106,11 +106,9 @@ Session = openSession()
 session = Session()
 
 class USCovidDao(USCovidDto):
-
     @staticmethod
     def count():
         return session.query(func.count(USCovidDto.id)).one()
-
     @staticmethod
     def save(data):
         db.session.add(data)
@@ -119,13 +117,11 @@ class USCovidDao(USCovidDto):
     def update(data):
         db.session.add(data)
         db.session.commit()
-
     @staticmethod
     def delete(cls, id):
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
-
     @staticmethod
     def bulk():
         path = os.path.abspath(__file__+"/.."+"/data/")
@@ -136,27 +132,22 @@ class USCovidDao(USCovidDto):
         session.bulk_insert_mappings(USCovidDto, df.to_dict(orient="records"))
         session.commit()
         session.close()
-
     @classmethod
     def find_by_date(cls, date):
-        return session.query(USCovidDto).filter(USCovidDto.date.like(date))
-
+        return session.query(USCovidDto).filter(USCovidDto.date.like(date)).all()
     @classmethod
     def find_by_period(cls,start_date, end_date):
-        return session.query(USCovidDto).filter(date__range=(start_date, end_date))
-
-    @staticmethod
+        return session.query(USCovidDto).filter(date__range=(start_date, end_date)).all()
+    @classmethod
     def find_all(cls):
         sql = cls.query
         df = pd.read_sql(sql.statement, sql.session.bind)
         return json.loads(df.to_json(orient='records'))
-
 # =============================================================
 # =============================================================
 # =====================    CONTROLLER    ======================
 # =============================================================
 # =============================================================
-
 parser = reqparse.RequestParser()
 parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
@@ -164,9 +155,7 @@ parser.add_argument('total_cases', type=int, required=False, help='This field ca
 parser.add_argument('total_deaths', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('ca_cases', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('ca_deaths', type=int, required=False, help='This field cannot be left blank')
-
 class USCovid(Resource):       
-
     def post(self):
         data = self.parset.parse_args()
         uscovid = USCovidDto(data['date'], data['total_cases'], data['total_deaths'], data['ca_cases'], data['ca_deaths'])
@@ -176,21 +165,17 @@ class USCovid(Resource):
         except:
             return {'message': 'An error occured inserting the covid case'}, 500
         return uscovid.json(), 201
-    
-    
-    def get(self, date):
+    def get(self):
+        print("=====uscovid.py / uscovid's get")
+        data = USCovidDao.find_all()
+        return data, 200
+    @staticmethod
+    def fetch(date:str):
+        print("=====uscovid.py / uscovid's fetch")
         uscovid = USCovidDao.find_by_id(date)
         if uscovid:
             return uscovid.json()
         return {'message': 'uscovid not found'}, 404
-
-    def fetch(self):
-        print("=====uscovid.py / uscovid's get")
-        cases = USCovidVo
-        stock.ticker = 'TSLA'
-        data = USCovidDao.find_all()
-        return data, 200
-
     def put(self, id):
         data = USCovid.parser.parse_args()
         uscovid = USCovidDao.find_by_id(id)
@@ -201,7 +186,6 @@ class USCovid(Resource):
         uscovid.ca_deaths = data['ca_deaths']
         uscovid.save()
         return uscovid.json()
-
 class USCovids(Resource):
-    def get(self):
-        return {'uscovid': list(map(lambda article: article.json(), USCovidDao.find_all()))}
+    def get():
+        return USCovidDao.find_all(), 200

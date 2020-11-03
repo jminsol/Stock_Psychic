@@ -188,9 +188,16 @@ class NasdaqPrediction(Resource):
         prediction.save()
         return prediction.json()
 
+    @staticmethod
+    def delete():
+        args = parser.parse_args()
+        print(f'Ticker {args["ticker"]} on date {args["date"]} is deleted')
+        NasdaqPredictionDao.delete(args['id'])
+        return {'code' : 0 , 'message' : 'SUCCESS'}, 200
+
 class NasdaqPredictions(Resource):
     def get(self):
-        return {'predictions': list(map(lambda article: article.json(), NasdaqPredictionDao.find_all()))}
+        return NasdaqPredictionDao.find_all(), 200
         # return {'articles':[article.json() for article in ArticleDao.find_all()]}
 
 class TeslaPredGraph(Resource):

@@ -14,7 +14,8 @@ from datetime import datetime, timedelta
 from http.client import IncompleteRead
 from unicodedata import normalize
 from newspaper import Article
-import newspaper
+from newspaper.article import ArticleException
+from newspaper import Config
 from sqlalchemy import and_,or_,func
 import json
 
@@ -49,7 +50,9 @@ class RecentNewsPro:
 
     # Open url
         url +=ticker
-        req = Request(url=url, headers={'user-agent': 'my-app/0.0.1'})
+        user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+
+        req = Request(url=url, headers={'user-agent': user_agent})
         resp = urlopen(req)
         html = bs(resp, features="lxml")
         news_table = html.find(id='news-table')
@@ -75,18 +78,25 @@ class RecentNewsPro:
            
             #Get news content by using links from finviz
             if "https://finance.yahoo.com/news" in link:
+                print("Getting yahoo news...", i,"/", len(df))
                 page = self.get_yahoo_page(link)
                 content=self.get_yahoo_news(page)
                 image = self.get_yahoo_image(page)
             else:
-                article = Article(link)
+                config = Config()
+                config.browser_user_agent = user_agent
+                article = Article(link, config=config)
                 try:
                     article.download() 
-                except newspaper.article.ArticleException as e:
-                    print(e)
-                    print("Error to download...move on next one")
+                except ArticleException as ae:
+                    print (ae)
                     continue
+                except Exception as e:
+                    print(e)
+                    continue
+
                 else:
+                    print("Getting other news...", i,"/", len(df))
                     article.parse()
                     content = self.clean_paragraph(article.text)
                     content = "".join(content)
@@ -117,7 +127,7 @@ class RecentNewsPro:
         return publish_date, pub_time
 
     def get_yahoo_page(self, link):
-        request = Request(link, headers={"User-Agent": "Mozilla/5.0"})
+        request = Request(link, headers={"User-Agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'})
         content = urlopen(request).read()
         return bs(content, 'lxml')
 
@@ -153,9 +163,9 @@ class RecentNewsPro:
         df = pd.DataFrame(data, columns=col)
         return df
 
-if __name__=='__main__':
-    news_pro = RecentNewsPro()
-    news_pro.hook()
+# if __name__=='__main__':
+#     news_pro = RecentNewsPro()
+#     news_pro.hook()
 
 # =============================================================
 # =============================================================
@@ -228,11 +238,23 @@ class RecentNewsDao(RecentNewsDto):
 
     @staticmethod   
     def bulk():
-        service = RecentNewsPro()
-        dfs = service.hook()
-        for i in dfs:
-            print(i.head())
-            session.bulk_insert_mappings(RecentNewsDto, i.to_dict(orient="records"))
+        # service = RecentNewsPro()
+        # dfs = service.hook()
+        # for i in dfs:
+        #     print(i.head())
+        #     session.bulk_insert_mappings(RecentNewsDto, i.to_dict(orient="records"))
+        #     session.commit()
+        # session.close()
+
+        tickers = ['AAPL', 'TSLA']
+        for tic in tickers:
+            path = os.path.abspath(__file__+"/.."+"/saved_data/")
+            file_name = tic + '_recent_news.csv'
+            input_file = os.path.join(path,file_name)
+
+            df = pd.read_csv(input_file)
+            print(df.head())
+            session.bulk_insert_mappings(RecentNewsDto, df.to_dict(orient="records"))
             session.commit()
         session.close()
 
@@ -299,7 +321,7 @@ class RecentNews(Resource):
         return recent_news.json(), 201
           
     @staticmethod
-    def get(self, ticker):
+    def get(ticker):
         args = parser.parse_args()
         print("=====recent_news.py / recent_news' get")
         stock = RecentNewsVo
@@ -308,7 +330,7 @@ class RecentNews(Resource):
         return data, 200
 
     @staticmethod
-    def put(self, id):
+    def put():
         data = RecentNews.parser.parse_args()
         stock = RecentNewsDao.find_by_id(id)
 
@@ -321,6 +343,13 @@ class RecentNews(Resource):
         stock.content = data['content']
         stock.save()
         return stock.json()
+
+    @staticmethod
+    def delete():
+        args = parser.parse_args()
+        print(f'Headline {args["headline"]} on date {args["date"]} deleted')
+        RecentNewsDao.delete(args['id'])
+        return {'code' : 0 , 'message' : 'SUCCESS'}, 200
 
 class AppleNews(Resource):
 
@@ -337,16 +366,14 @@ class AppleNews(Resource):
         return recent_news.json(), 201
           
     @staticmethod
-    def get(self, ticker):
-        args = parser.parse_args()
-        print("=====recent_news.py / recent_news' get")
+    def get():
+        print("=====recent_news.py / tesla_news' get")
         stock = RecentNewsVo
-        stock.ticker = ticker
+        stock.ticker = 'AAPL'
         data = RecentNewsDao.find_all_by_ticker(stock)
         return data, 200
-
     @staticmethod
-    def put(self, id):
+    def put(id):
         data = RecentNews.parser.parse_args()
         stock = RecentNewsDao.find_by_id(id)
 
@@ -376,7 +403,6 @@ class TeslaNews(Resource):
           
     @staticmethod
     def get():
-        args = parser.parse_args()
         print("=====recent_news.py / tesla_news' get")
         stock = RecentNewsVo
         stock.ticker = 'TSLA'
@@ -384,7 +410,7 @@ class TeslaNews(Resource):
         return data, 200
 
     @staticmethod
-    def put(self, id):
+    def put(id):
         data = RecentNews.parser.parse_args()
         stock = RecentNewsDao.find_by_id(id)
 
@@ -397,8 +423,3 @@ class TeslaNews(Resource):
         stock.content = data['content']
         stock.save()
         return stock.json()
-
-
-class RecentNews_(Resource):
-    def get(self):
-        return {'Recent News list': list(map(lambda article: article.json(), RecentNewsDao.find_all()))}

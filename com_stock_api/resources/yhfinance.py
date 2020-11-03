@@ -182,9 +182,7 @@ class YHFinanceDao(YHFinanceDto):
     def find_by_date(cls, date, tic):
         return session.query.filter(and_(cls.date.like(date), cls.ticker.ilike(tic)))
     @classmethod
-    def find_by_ticker(cls, tic):
-        print("In find_by_ticker")
-   
+    def find_by_ticker(cls, tic):   
         return session.query(YHFinanceDto).filter((YHFinanceDto.ticker.ilike(tic))).order_by(YHFinanceDto.date).all()
         
     @classmethod
@@ -219,7 +217,7 @@ class YHFinance(Resource):
 # Date,Open,High,Low,Close,Adj Close,Volume
 
     @staticmethod
-    def post(self):
+    def post():
         data = self.parset.parse_args()
         stock = YHFinanceDto(data['date'], data['ticker'],data['open'], data['high'], data['low'], data['close'],  data['adjclose'], data['volume'])
         try: 
@@ -230,13 +228,13 @@ class YHFinance(Resource):
             return {'message': 'An error occured inserting the stock history'}, 500
         return stock.json(), 201
         
-    def get(self, ticker):
+    def get(ticker):
         stock = YHFinanceDao.find_by_ticker(ticker)
         if stock:
             return stock.json()
         return {'message': 'The stock was not found'}, 404
 
-    def put(self, id):
+    def put(id):
         data = YHFinance.parser.parse_args()
         stock = YHFinanceDao.find_by_id(id)
 
@@ -245,9 +243,16 @@ class YHFinance(Resource):
         stock.save()
         return stock.json()
 
+    @staticmethod
+    def delete():
+        args = parser.parse_args()
+        print(f'Ticker {args["ticker"]} on date {args["date"]} is deleted')
+        YHFinanceDao.delete(args['id'])
+        return {'code' : 0 , 'message' : 'SUCCESS'}, 200
+
 class YHFinances(Resource):
     def get(self):
-        return {'stock history': list(map(lambda article: article.json(), YHFinanceDao.find_all()))}
+        return YHFinanceDao.find_all(), 200
 
 class TeslaGraph(Resource):
 
@@ -268,6 +273,7 @@ class TeslaGraph(Resource):
         stock.ticker = args.ticker
         data = YHFinanceDao.find_all_by_ticker(stock)
         return data[0], 200
+        
         
 class AppleGraph(Resource):
 

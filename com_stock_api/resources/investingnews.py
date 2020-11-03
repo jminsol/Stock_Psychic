@@ -334,7 +334,7 @@ class Investing(Resource):
         return news_sentiment.json(), 201     
     
     @staticmethod
-    def get(self, ticker):
+    def get(ticker):
         print("=====investing.py / Investing's get")
         args = parser.parse_args()
         stock = InvestingVo()
@@ -343,7 +343,7 @@ class Investing(Resource):
         return data, 200
 
     @staticmethod
-    def put(self, id):
+    def put(id):
         data = Investing.parser.parse_args()
         stock = InvestingDao.find_by_id(id)
 
@@ -359,6 +359,27 @@ class Investing(Resource):
         stock.save()
         return stock.json()
 
-class Investings(Resource):
-    def get(self):
-        return {'news sentiment': list(map(lambda article: article.json(), InvestingDao.find_all()))}
+    @staticmethod
+    def delete():
+        args = parser.parse_args()
+        print(f'Headline {args["headline"]} on date {args["date"]} deleted')
+        InvestingDao.delete(args['id'])
+        return {'code' : 0 , 'message' : 'SUCCESS'}, 200
+
+class AppleSentiment(Resource):
+    @staticmethod
+    def get():
+        print("=====investingnews.py / AppleSentiment's get")
+        stock = InvestingVo()
+        stock.ticker = 'AAPL'
+        data = InvestingDao.find_all_by_ticker(stock)
+        return data, 200
+
+class TeslaSentiment(Resource):
+    @staticmethod
+    def get():
+        print("=====investingnews.py / TeslaSentiment's get")
+        stock = InvestingVo()
+        stock.ticker = 'TSLA'
+        data = InvestingDao.find_all_by_ticker(stock)
+        return data, 200
