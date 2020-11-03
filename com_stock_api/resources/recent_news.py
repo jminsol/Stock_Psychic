@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from http.client import IncompleteRead
 from unicodedata import normalize
 from newspaper import Article
+import newspaper
 from sqlalchemy import and_,or_,func
 import json
 
@@ -80,15 +81,15 @@ class RecentNewsPro:
             else:
                 article = Article(link)
                 try:
-                    article.download()
-                    
+                    article.download() 
                 except newspaper.article.ArticleException as e:
                     print(e)
+                    print("Error to download...move on next one")
+                    continue
                 else:
                     article.parse()
                     content = self.clean_paragraph(article.text)
                     content = "".join(content)
-                
                     image = article.top_image
           
 
@@ -152,9 +153,9 @@ class RecentNewsPro:
         df = pd.DataFrame(data, columns=col)
         return df
 
-# if __name__=='__main__':
-#     news_pro = RecentNewsPro()
-#     news_pro.hook()
+if __name__=='__main__':
+    news_pro = RecentNewsPro()
+    news_pro.hook()
 
 # =============================================================
 # =============================================================
@@ -320,6 +321,83 @@ class RecentNews(Resource):
         stock.content = data['content']
         stock.save()
         return stock.json()
+
+class AppleNews(Resource):
+
+    @staticmethod
+    def post():
+        data = parser.parse_args()
+        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['image'], data['content'])
+        try: 
+            recent_news.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
+        except:
+            return {'message': 'An error occured inserting recent news'}, 500
+        return recent_news.json(), 201
+          
+    @staticmethod
+    def get(self, ticker):
+        args = parser.parse_args()
+        print("=====recent_news.py / recent_news' get")
+        stock = RecentNewsVo
+        stock.ticker = ticker
+        data = RecentNewsDao.find_all_by_ticker(stock)
+        return data, 200
+
+    @staticmethod
+    def put(self, id):
+        data = RecentNews.parser.parse_args()
+        stock = RecentNewsDao.find_by_id(id)
+
+        stock.date = data['date']
+        stock.time = data['time']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
+        stock.headline = data['headline']
+        stock.image = data['image']
+        stock.content = data['content']
+        stock.save()
+        return stock.json()
+
+class TeslaNews(Resource):
+
+    @staticmethod
+    def post():
+        data = parser.parse_args()
+        recent_news = RecentNewsDto(data['date'], data['time'] ,data['ticker'], data['link'],data['headline'], data['image'], data['content'])
+        try: 
+            recent_news.save(data)
+            return {'code' : 0, 'message' : 'SUCCESS'}, 200
+
+        except:
+            return {'message': 'An error occured inserting recent news'}, 500
+        return recent_news.json(), 201
+          
+    @staticmethod
+    def get():
+        args = parser.parse_args()
+        print("=====recent_news.py / tesla_news' get")
+        stock = RecentNewsVo
+        stock.ticker = 'TSLA'
+        data = RecentNewsDao.find_all_by_ticker(stock)
+        return data, 200
+
+    @staticmethod
+    def put(self, id):
+        data = RecentNews.parser.parse_args()
+        stock = RecentNewsDao.find_by_id(id)
+
+        stock.date = data['date']
+        stock.time = data['time']
+        stock.ticker = data['ticker']
+        stock.link = data['link']
+        stock.headline = data['headline']
+        stock.image = data['image']
+        stock.content = data['content']
+        stock.save()
+        return stock.json()
+
 
 class RecentNews_(Resource):
     def get(self):
