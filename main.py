@@ -31,8 +31,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 api = Api(app)
 
-with app.app_context():
-    db.create_all()
+# with app.app_context():
+#     db.create_all()
 with app.app_context():
     count1 = USCovidDao.count()
     print(f'US Covid case Total Count is {count1[0]}')
