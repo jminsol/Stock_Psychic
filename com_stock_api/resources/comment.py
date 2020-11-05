@@ -1,4 +1,4 @@
-from com_stock_api.ext.db import db
+from com_stock_api.ext.db import db, openSession
 from com_stock_api.resources.board import BoardDto
 from com_stock_api.resources.member import MemberDto
 import datetime
@@ -7,8 +7,35 @@ from com_stock_api.ext.db import db
 import pandas as pd
 import json
 
+from flask import request, jsonify
 from flask_restful import Resource, reqparse
 import datetime
+
+
+
+
+
+'''
+ * @ Module Name : comment.py
+ * @ Description : Comment
+ * @ since 2020.10.15
+ * @ version 1.0
+ * @ Modification Information
+ * @ author 곽아름
+ * @ special reference libraries
+ *     flask_restful
+''' 
+
+
+
+
+# =====================================================================
+# =====================================================================
+# =======================      model      =============================
+# =====================================================================
+# =====================================================================
+
+
 
 class CommentDto(db.Model):
 
@@ -23,6 +50,9 @@ class CommentDto(db.Model):
     comment_ref: int = db.Column(db.Integer, nullable=False)
     comment_level: int = db.Column(db.Integer, nullable=False)
     comment_step: int = db.Column(db.Integer, nullable=False)
+
+    board = db.relationship('BoardDto', back_populates='comments')
+    member = db.relationship('MemberDto', back_populates='comments')
 
     def __init__(self, board_id, email, comment, regdate, comment_ref, comment_level, comment_step):
         self.board_id = board_id
@@ -59,35 +89,22 @@ class CommentVo:
     comment_level: int = 0
     comment_step: int = 0
 
-# ref, level, step은 대댓글 기능을 위함
 
-# ref: 최초 댓글 - 자신의 id / 대댓글 - 모댓글 ref
-# level: 최초 댓글 - 0 / 대댓글 - 모댓글 level + 1
-# step: 최초 댓글 - 0 / 대댓글 - 모댓글과 ref가 같은 댓글 중 모댓글보다 step이 큰 댓글 모두 step +1 이후 자신은 모댓글 step +1
 
-'''
-순서		    ref	    level	step
-1		        1	    0	    0
-	5	        1	    1	    1
-        7	    1	    2	    2
-	4	        1	    1	    3
-	    6	    1	    2	    4
-2		        2	    0	    0
-3		        3	    0	    0
 
-* 정렬 기준: ref asc 우선 -> step asc
-'''
 
 
 
 class CommentDao(CommentDto):
-    @classmethod
-    def count(cls):
-        return cls.query.count()
-
 
     def __init__(self):
         ...
+
+    @classmethod
+    def find_maxnum_for_board(cls, board_id):
+        sql = cls.query.filter(max(cls.id)).filter(cls.board_id == board_id)
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
 
     @classmethod
     def find_all(cls):
@@ -96,17 +113,16 @@ class CommentDao(CommentDto):
         return json.loads(df.to_json(orient='records'))
 
     @classmethod
-    def find_by_id(cls, comment):
-        sql = cls.query.filter(cls.id.like(comment.id))
+    def find_by_id(cls, id):
+        sql = cls.query.filter(cls.id.like(id))
         df = pd.read_sql(sql.statement, sql.session.bind)
         print(json.loads(df.to_json(orient='records')))
         return json.loads(df.to_json(orient='records'))
 
     @classmethod
-    def find_by_boardid(cls, comment):
-        sql = cls.query.filter(cls.board_id.like(comment.board_id))
+    def find_by_boardid(cls, board_id):
+        sql = cls.query.filter(cls.board_id.like(board_id))
         df = pd.read_sql(sql.statement, sql.session.bind)
-        print(json.loads(df.to_json(orient='records')))
         return json.loads(df.to_json(orient='records'))
     
     @staticmethod
@@ -116,14 +132,20 @@ class CommentDao(CommentDto):
 
     @staticmethod
     def modify_comment(comment):
-        db.session.add(comment)
-        db.session.commit()
+        Session = openSession()
+        session = Session()
+        member = session.query(CommentDto)\
+        .filter(CommentDto.email == comment.email)\
+        .update({CommentDto.comment: comment['comment']})
+        session.commit()
+        session.close()
 
     @classmethod
     def delete_comment(cls, id):
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
+        db.session.close()
 
 
 
@@ -131,53 +153,78 @@ class CommentDao(CommentDto):
 
 # =====================================================================
 # =====================================================================
-# ============================ controller =============================
+# =====================        controller        ======================
 # =====================================================================
 # =====================================================================
 
 
 
+
+
+parser = reqparse.RequestParser()
+parser.add_argument('id', type=int, required=True, help='This field cannot be left blank')
+parser.add_argument('board_id', type=int)
+parser.add_argument('email', type=str)
+parser.add_argument('comment', type=str)
+parser.add_argument('regdate', type=str)
+parser.add_argument('comment_ref', type=int)
+parser.add_argument('comment_level', type=int)
+parser.add_argument('comment_step', type=int)
 
 
 class Comment(Resource):
-    def __init__(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('id', type=int, required=True, help='This field cannot be left blank')
-        parser.add_argument('board_id', type=int, required=True, help='This field cannot be left blank')
-        parser.add_argument('email', type=str, required=True, help='This field cannot be left blank')
-        parser.add_argument('comment', type=str, required=True, help='This field cannot be left blank')
-        parser.add_argument('regdate', type=str, required=True, help='This field cannot be left blank')
-        parser.add_argument('comment_ref', type=int, required=True, help='This field cannot be left blank')
-        parser.add_argument('comment_level', type=int, required=True, help='This field cannot be left blank')
-        parser.add_argument('comment_step', type=int, required=True, help='This field cannot be left blank')
-        
-    def post(self):
-        data = self.parser.parse_args()
-        comment = CommentDto(data['id'], data['board_id'], data['email'], data['comment'], data['regdate'], data['comment_ref'], data['comment_level'], data['comment_step'])
-        try:
-            comment.save()
-        except:
-            return {'message': 'An error occured inserting the comments'}, 500
-        return comment.json(), 201
     
-    def get(self, id):
-        comment = CommentDao.find_by_id(id)
-        if comment:
-            return comment.json()
-        return {'message': 'Comment not found'}, 404
+    @staticmethod
+    def post(id):
+        body = request.get_json()
+        print(f'body: {body}')
+        comment = CommentDto(**body)
+        CommentDao.save(comment)
+        content = comment.comment
+        return {'comment': str(content)}, 200
+    
+    @staticmethod
+    def get(id):
+        try:
+            comment = CommentDao.find_by_id(id)
+            if comment:
+                return comment
+        except Exception as e:
+            print(e)
+            return {'message': 'Comment not found'}, 404
 
-    def put(self, id):
-        data = self.parser.parse_args()
-        comment = CommentDao.find_by_id(id)
-
-        comment.comment = data['comment']
-        comment.regdate = data['regdate']
-        comment.save()
-        return comment.json()
+    @staticmethod
+    def update(id):
+        args = request.get_json()
+        print(f'Comment {args["id"]} updated')
+        try:
+            CommentDao.modify_comment(args)
+            return {'code': 0, 'message': 'SUCCESS'}, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Comment not found'}, 404
+   
+    @staticmethod
+    def delete(id):
+        print('comment DELETE')
+        try:
+            CommentDao.delete_comment(id)
+            return {'code': 0, 'message': 'SUCCESS'}, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Comment not found'}, 404
     
 class Comments(Resource):
-    def get(self):
-        return {'comments': list(map(lambda comment: comment.json(), CommentDao.find_all()))}
+    def post(self):
+        c_dao = CommentDao()
+        c_dao.insert_many('comments')
 
+    def get(self, id):
+        data = CommentDao.find_by_boardid(id)
+        return data, 200
 
+class CommentMaxNum(Resource):
+    def get(self, id):
+        num = CommentDao.find_maxnum_for_board(id)
+        return num, 200
 

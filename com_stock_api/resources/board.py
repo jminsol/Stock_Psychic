@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 import datetime
 from com_stock_api.resources.member import MemberDto
 
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 import pandas as pd
 import json
 
@@ -16,6 +16,88 @@ import re
 from typing import List
 from flask import request, jsonify
 from flask_restful import Resource, reqparse
+
+
+
+
+
+'''
+ * @ Module Name : board.py
+ * @ Description : Board
+ * @ since 2020.10.15
+ * @ version 1.0
+ * @ Modification Information
+ * @ author 곽아름
+ * @ special reference libraries
+ *     flask_restful, sqlalchemy
+''' 
+
+
+
+
+# =====================================================================
+# =====================================================================
+# ===================      preprocessing      =========================
+# =====================================================================
+# =====================================================================
+
+
+
+
+
+class BoardPro:
+
+    def __init__(self):
+        self.reader = FileReader()
+        self.datapath = os.path.abspath(os.path.dirname(__file__))
+
+    def process(self):
+        file_data = self.get_data()
+        data = self.refine_data(file_data)
+        return data
+
+    def get_data(self):
+        self.reader.context = os.path.join(self.datapath, 'data')
+        self.reader.fname = 'kyobo_notice.csv'
+        notice_file = self.reader.csv_to_dframe()
+        return notice_file
+    
+    @staticmethod
+    def refine_data(data):
+        # 컬럼명 변경
+        data = data.rename({'제목': 'title', '내용': 'content', '작성일자': 'regdate'}, axis='columns')
+        data = data.sort_values(by=['regdate'], axis=0)
+        data['email'] = 'admin@stockpsychic.com'
+        data['article_type'] = 'Notice'
+        data = data.drop('url', axis=1)
+
+        for idx in range(len(data['content'])):
+            con = re.sub('<!--(.+?)-->', '', str(data['content'][idx]))
+            con = con.replace('<!--', '')
+            con = con.replace('교보증권', 'Stock Psychic')
+            con = con.replace('\r', '<br/>')
+            data['content'][idx] = con
+        print(data)
+        return data
+
+    def save_data(self, data):
+        self.reader.context = os.path.join(self.datapath, 'saved_data')
+        self.reader.fname = 'kyobo_notice_database.csv'
+        data.to_csv(self.reader.new_file(), index=False)
+        print('file saved')
+
+
+
+
+
+# =====================================================================
+# =====================================================================
+# ===================        modeling         =========================
+# =====================================================================
+# =====================================================================
+
+
+
 
 
 class BoardDto(db.Model):
@@ -30,8 +112,10 @@ class BoardDto(db.Model):
     content: str = db.Column(db.String(20000), nullable=False)
     regdate: datetime = db.Column(db.String(1000), default=datetime.datetime.now())
 
-    def __init__(self, id, email, article_type, title, content, regdate):
-        self.id = id
+    member = db.relationship('MemberDto', back_populates='boards')
+    comments = db.relationship('CommentDto', back_populates='board', lazy='dynamic')
+
+    def __init__(self, email, article_type, title, content, regdate):
         self.email = email
         self.article_type = article_type
         self.title = title
@@ -73,11 +157,16 @@ class BoardVo:
 
 
 
+
+Session = openSession()
+session = Session()
+
 class BoardDao(BoardDto):
 
     @classmethod
     def count(cls):
-        return cls.query.count()
+        return session.query(func.count(BoardDto.id)).one()
+
     @classmethod
     def find_all(cls):
         sql = cls.query.order_by(cls.regdate.desc())
@@ -92,7 +181,9 @@ class BoardDao(BoardDto):
 
     @classmethod
     def find_by_member(cls, email):
-        return cls.query.filter_by(email == email).all()
+        sql = cls.query.filter(cls.email.like(email))
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
 
     @staticmethod
     def save(board):
@@ -110,76 +201,36 @@ class BoardDao(BoardDto):
         session.commit()
         session.close()
     
-    @staticmethod
-    def modify_board(board):
-        db.session.add(board)
-        db.commit()
+    @classmethod
+    def modify_board(cls, board):
+        Session = openSession()
+        session = Session()
+        board = session.query(BoardDto)\
+        .filter(BoardDto.id==board.id)\
+        .update({BoardDto.title: board['title'], BoardDto.content: board['content']})
+        session.commit()
+        session.close()
 
     @classmethod
     def delete_board(cls, id):
+        # 트랜잭션 필요
+
+        # comments = CommentDao.find_by_boardid(id)
+        # print(f'delete board comments: {comments}')
+        # print(f'delete board comments: {type(comments)}')
+        # for c in comments:
+        #     CommentDao.delete_comment(c)
+        
+        # File "C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\board.py", line 6, in <module>
+        #     from com_stock_api.resources.comment import CommentDao
+        # File "C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\comment.py", line 2, in <module>
+        #     from com_stock_api.resources.board import BoardDto
+        # ImportError: cannot import name 'BoardDto' from 'com_stock_api.resources.board' (C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\board.py)
+
         data = cls.query.get(id)
         db.session.delete(data)
         db.session.commit()
-
-
-
-
-
-# =====================================================================
-# =====================================================================
-# ============================== service ==============================
-# =====================================================================
-# =====================================================================
-
-
-
-
-
-class BoardPro:
-
-    def __init__(self):
-        # print(f'basedir: {basedir}')
-        self.reader = FileReader()
-        self.datapath = os.path.abspath('com_stock_api/resources')
-
-    def process(self):
-        file_data = self.get_data()
-        data = self.refine_data(file_data)
-        # self.save_data(data)
-        return data
-
-    def get_data(self):
-        self.reader.context = os.path.join(self.datapath, 'data')
-        self.reader.fname = 'kyobo_notice.csv'
-        notice_file = self.reader.csv_to_dframe()
-        # print(notice_file)
-        return notice_file
-    
-    @staticmethod
-    def refine_data(data):
-        # 컬럼명 변경
-        data = data.rename({'제목': 'title', '내용': 'content', '작성일자': 'regdate'}, axis='columns')
-        data = data.sort_values(by=['regdate'], axis=0)
-        data['email'] = 'admin@stockpsychic.com'
-        data['article_type'] = 'Notice'
-        data = data.drop('url', axis=1)
-
-        # print(data['content'][1])
-        for idx in range(len(data['content'])):
-            con = re.sub('<!--(.+?)-->', '', str(data['content'][idx]))
-            con = con.replace('<!--', '')
-            con = con.replace('교보증권', 'Stock Psychic')
-            data['content'][idx] = con
-        # data['regdate'] = ['20'+ regdate for regdate in data['regdate']]
-
-        print(data)
-        return data
-
-    def save_data(self, data):
-        self.reader.context = os.path.join(self.datapath, 'saved_data')
-        self.reader.fname = 'kyobo_notice_database.csv'
-        data.to_csv(self.reader.new_file(), index=False)
-        print('file saved')
+        db.session.close()
 
 
 
@@ -188,7 +239,7 @@ class BoardPro:
 
 # =====================================================================
 # =====================================================================
-# ============================ controller =============================
+# ===================        controller       =========================
 # =====================================================================
 # =====================================================================
 
@@ -208,16 +259,17 @@ parser.add_argument('regdate', type=str, required=True, help='This field cannot 
 class Board(Resource):
     
     @staticmethod
-    def post():
-        args = parser.parse_args()
-        print(f'Board {args["id"]} added')
-        params = json.loads(request.get_data(), encoding='utf-8')
+    def post(id):
+        body = request.get_json()
+        print(f'body: {body}')
+        board = BoardDto(**body)
+        BoardDao.save(board)
+        return {'board': str(board.id)}, 200
     
     @staticmethod
     def get(id):
         try:
             board = BoardDao.find_by_id(id)
-            # print(board)
             if board:
                 return board
         except Exception as e:
@@ -225,16 +277,24 @@ class Board(Resource):
             return {'message': 'Board not found'}, 404
 
     @staticmethod
-    def update():
+    def put(id):
         args = parser.parse_args()
-        print(f'Board {args["id"]} updated')
-        return {'code': 0, 'message': 'SUCCESS'}, 200
+        print(f'Board {args} updated')
+        try:
+            BoardDao.modify_board(args)
+            return {'code': 0, 'message': 'SUCCESS'}, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Board not found'}, 404
    
     @staticmethod
-    def delete():
-        args = parser.parse_args()
-        print(f'Board {args["id"]} deleted')
-        return {'code': 0, 'message': 'SUCCESS'}, 200
+    def delete(id):
+        try:
+            BoardDao.delete_board(id)
+            return {'code': 0, 'message': 'SUCCESS'}, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Board not found'}, 404
     
 class Boards(Resource):
     
