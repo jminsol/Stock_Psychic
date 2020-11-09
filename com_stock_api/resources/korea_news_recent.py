@@ -170,23 +170,23 @@ class RNewsDao(NewsDto):
     def __init__(self):
         self.data = os.path.abspath(__file__+"/.."+"/data/")
     
-
+    # comment parts : To scrap news on live
     def bulk(self):
         path = self.data
-        kn = KoreaNews()
-        kn.new_model()
+        # kn = KoreaNews()
+        # kn.new_model()
         companys = ['lg화학','lg이노텍']
         for com in companys:
             print(f'company:{com}')
-            df = kn.search_news(com)
+            # df = kn.search_news(com)
             if com =='lg화학':
                 com ='lgchem'
             elif com =='lg이노텍':
                 com='lginnotek'
-            #file_name = com +'.csv'
-            #input_file = os.path.join(path,file_name)
-            df.to_csv(path + '/'+com+'_recent_news.csv',encoding='UTF-8')
-            #df = pd.read_csv(input_file ,encoding='utf-8',dtype=str)
+            file_name = com +'_recent_news.csv.csv'
+            input_file = os.path.join(path,file_name)
+            # df.to_csv(path + '/'+com+'_recent_news.csv',encoding='UTF-8')
+            df = pd.read_csv(input_file ,encoding='utf-8',dtype=str)
             print(df.head()) 
             session.bulk_insert_mappings(NewsDto, df.to_dict(orient='records'))
             session.commit()
