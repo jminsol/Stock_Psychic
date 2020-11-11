@@ -209,7 +209,7 @@ class NasdaqDF():
         main_df = self.df
         
         #1. Bring history of a chosen ticker
-        df=pd.read_sql_table('Yahoo_Finance', engine.connect())
+        df=pd.read_sql_table('yahoo_finance', engine.connect())
         df = df.loc[(df['ticker'] == self.ticker) & (df['date'] > '2009-12-31')& (df['date'] < '2020-07-01')]
         df = df.drop(['ticker', 'id'], axis=1)
 
@@ -230,7 +230,7 @@ class NasdaqDF():
         df['increase_rate_adjclose'] =  adjclose_rate 
        
         #1-2. Bring history of the other ticker
-        df4=pd.read_sql_table('Yahoo_Finance', engine.connect())
+        df4=pd.read_sql_table('yahoo_finance', engine.connect())
         tic = [t for t in self.tickers if t != self.ticker]
         df4 = df4.loc[(df4['ticker'] == tic[0]) & (df4['date'] > '2009-12-31')& (df4['date'] < '2020-07-01')]
         df4 = df4.rename(columns={'open': tic[0]+'_open', 'high':tic[0]+'_high', 'low':tic[0]+'_low','close': tic[0]+'_close', 'adjclose': tic[0]+'_adjclose'})
@@ -314,7 +314,7 @@ class NasdaqDF():
 
     def draw_initial_graph(self, df):
         
-        # df=pd.read_sql_table('Yahoo_Finance', engine.connect(), parse_dates=['date'])
+        # df=pd.read_sql_table('yahoo_finance', engine.connect(), parse_dates=['date'])
         # df = df.loc[(df['ticker'] == self.ticker) & (df['date'] > '2009-12-31')& (df['date'] < '2020-07-01')]
         
         cols = ['open', 'low', 'close', 'adjclose' , 'moving_avg', 'increase_rate_vol', 'increase_rate_adjclose']
@@ -608,7 +608,9 @@ class NasdaqTrain():
         output_predict = minmax.inverse_transform(output_predict)
         deep_future = self.anchor(output_predict[:, 0], 0.3)
 
-        path2 = os.path.abspath(__file__+"/.."+"/models/")
+        tickers = {'AAPL':'apple', 'TSLA': 'tesla'}
+        folder = [tickers[k] for k in tickers if k == ticker]
+        path2 = os.path.abspath(__file__+"/.."+"/models/"+folder[0]+"/")
         saver  = tf.train.Saver()
         name = '/' + ticker+ str(cnt) + '.ckpt'
         saver.save(sess, path2+name)

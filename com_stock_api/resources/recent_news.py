@@ -50,7 +50,8 @@ class RecentNewsPro:
 
     # Open url
         url +=ticker
-        user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+        user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0'
+        
 
         req = Request(url=url, headers={'user-agent': user_agent})
         resp = urlopen(req)
@@ -63,7 +64,7 @@ class RecentNewsPro:
         today = datetime.now()
         recent = today - timedelta(days = 3)
         processed_data = []
-        
+        the_most_recent = []
         for i, row in enumerate(df):
             #Basic given information from finviz.com
             headline = row.a.text
@@ -73,7 +74,12 @@ class RecentNewsPro:
             
             # Get published date and time
             date_time = self.get_published_datetime(time)
-            published_date = date_time[0] if (date_time[0]!=0) else (processed_data[-1][0])
+            print('====date_time====')
+            print(date_time)
+            if (date_time[0]!=0):
+                d= date_time[0]
+            the_most_recent.append(d)
+            published_date = the_most_recent[-1]
             published_time = date_time[1]
            
             #Get news content by using links from finviz
@@ -82,6 +88,8 @@ class RecentNewsPro:
                 page = self.get_yahoo_page(link)
                 content=self.get_yahoo_news(page)
                 image = self.get_yahoo_image(page)
+            if "https://www.investors.com" in link: #Causing errors at this site
+                continue
             else:
                 config = Config()
                 config.browser_user_agent = user_agent

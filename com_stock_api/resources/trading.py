@@ -62,7 +62,7 @@ class TradingPro:
     def get_data(self):
         members = pd.read_sql_table('members', engine.connect())
         kospis = pd.read_sql_table('korea_finance', engine.connect())
-        nasdaqs = pd.read_sql_table('Yahoo_Finance', engine.connect())
+        nasdaqs = pd.read_sql_table('yahoo_finance', engine.connect())
         
         # kospi의 금액을 모두 20201030 현재 환율 1129.16으로 나눔
         kospis['open'] = [round(float(k)/1129.16, 4) for k in kospis['open']]
