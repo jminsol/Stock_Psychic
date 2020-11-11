@@ -22,8 +22,8 @@ import json
 
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
-import tensorflow_datasets as tfds
-import tensorflow_hub as hub
+# import tensorflow_datasets as tfds
+# import tensorflow_hub as hub
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression

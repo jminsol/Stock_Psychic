@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow_hub as hub
+# import tensorflow_hub as hub
 
 def env_info():
     print(f'TF버전: {tf.__version__}')
