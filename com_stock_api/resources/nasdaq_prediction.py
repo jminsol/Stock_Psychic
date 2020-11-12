@@ -665,7 +665,7 @@ class NasdaqTrain():
         '''
         #split train and test
         test_size = 30
-        simulation_size = 1
+        simulation_size = 3
 
         df_train = df_log.iloc[:-test_size]
         df_test = df_log.iloc[-test_size:]
@@ -675,7 +675,7 @@ class NasdaqTrain():
             print('simulation %d' %(i + 1))
             results.append(self.forecast(df_train, df_log, test_size, self.df, minmax, i+1))
 
-        # date_ori - pd.to_datetime(df.iloc[:, 0]).tolist()
+        # date_ori = pd.to_datetime(df.iloc[:, 0]).tolist()
         # for i in range(test_size):
         #     date_ori.append(date_ori[-1] + timedelta(days=1))
         # date_ori = pd.Series(date_ori).dt.strftime(date_format = '%Y-%m-%d').tolist()
@@ -687,14 +687,10 @@ class NasdaqTrain():
         #         (np.array(r[-test_size:]) > np.max(df['adjclose']) * 2 ).sum()==0) :
         #         accepted_results.append(r)
         # print("length of accepted_results: ", len(accepted_results))
-        return results
 
-    def get_accuracies(self, results):
-        return [self.calculate_accuracy(self.df['adjclose'].iloc[-test_size:].values, r) for r in results]
+        accuracies= [self.calculate_accuracy(self.df['adjclose'].iloc[-test_size:].values, r) for r in results]
         
 
-    def draw_forecasts(self, results):
-        accuracies = self.get_accuracies(results)
         plt.figure(figsize= (15,5))
         for no, r in enumerate(results):
             plt.plot(r, label = 'forcast %d'% (no+1))
@@ -706,7 +702,8 @@ class NasdaqTrain():
 
         file_name = self.ticker + "_prediction1.png"
         output_file = os.path.join(path, file_name)
-        plt.savefig(output_file)
+        plt.show()
+        # plt.savefig(output_file)
 
         print('==== Saved nasdaq.ckpy + prediction.png ====')
 
@@ -802,15 +799,15 @@ class NasdaqTrain():
         modelnn.X = np.expand_dims(output_predict, axis=0)
         # modelnn.hidden_layer = np(modelnn.last_state).reshape(1,1 ,len(modelnn.X))
         # print('====', modelnn.X , modelnn.hidden_layer,'====')
-        modelnn.X = int((modelnn.X[0]) )
+        # modelnn.X = int((modelnn.X[0]) )
 
-        weights = tf.Variable(tf.random_normal(modelnn.X), name='weights')
-        # biases = tf.Variable(tf.random_normal([moedlnn.X]), name='biases')
-        saver  = tf.train.Saver()
-        sess = tf.Session()
-        name = '/' + self.ticker+ str(cnt)
-        sess.run(tf.global_variables_initializer())
-        saver.save(sess, path2+name, global_step=1000)
+        # weights = tf.Variable(tf.random_normal(modelnn.X), name='weights')
+        # # biases = tf.Variable(tf.random_normal([moedlnn.X]), name='biases')
+        # saver  = tf.train.Saver()
+        # sess = tf.Session()
+        # name = '/' + self.ticker+ str(cnt)
+        # sess.run(tf.global_variables_initializer())
+        # saver.save(sess, path2+name, global_step=1000)
 
         return deep_future[-test_size:]
            
@@ -818,9 +815,8 @@ if __name__ == "__main__":
     dataset = NasdaqDF()
     # dataset.hook()
     train = NasdaqTrain('AAPL')
-    r = train.train()
-    acc = train.get_accuracies(r)
-    train.draw_forecasts(r)
+    train.train()
+ 
 
     # NasdaqTrain.train()
     # NasdaqTrain.train()
