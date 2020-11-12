@@ -15,15 +15,15 @@ from com_stock_api.utils.file_helper import FileReader
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-# from keras.layers.core import Dense, Activation, Dropout
-# from keras.layers.recurrent import LSTM
+# from sklearn.metrics import mean_squared_error
+# from keras.layers import Dense
+# from keras.layers import LSTM
 # from keras.models import Sequential
 os.environ['TF_CPP_MIN_LOG_LEVEL']='3'
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 tf.logging.set_verbosity(tf.logging.ERROR)
-# tf =  tf.compat.v1
-# tf.disable_eager_execution()
+
 from tqdm import tqdm
 
 # =============================================================
@@ -376,7 +376,186 @@ class NasdaqDF():
         output_file2 = os.path.join(path, file_name2)
         plt.savefig(output_file2)
         print('=== Saved heatmap ===')
+
+    '''
+class LongShortTermModel:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.path = os.path.abspath(__file__+"/.."+"/saved_data")
+
+    @staticmethod
+    def series_to_supervised(data, n_in=1, n_out=1):
+        n_vars = 1 if type(data) is list else data.shape[1]
+        df = pd.DataFrame(data)
+        cols, names = list(), list()
+
+        #input sequence (t-n, ..., t-1)
+        for i in range(n_in, 0, -1):
+            cols.append(df.shift(i))
+            names+=[('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
+
+        #forecast sequence (t, t+1, ..., t+n)
+        for i in range(0, n_out):
+            cols.append(df.shift(-i))
+            if i ==0:
+                names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
+            else:
+                names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars) ]
         
+        #put it all together
+        agg = pd.concat(cols, axis =1)
+        agg.columns = names
+        agg.dropna(inplace=True)
+        return agg
+        
+    
+    def getting_data(self):
+        filen = self.ticker + "_dataset.csv"
+        input_file = os.path.join(self.path, filen)
+        #load dataset
+        df = pd.read_csv(input_file, header=0)
+        df = df.set_index('date')
+        values = df.values
+        scaler = MinMaxScaler(feature_range=(0,1))
+        scaled = scaler.fit_transform(values)
+        #specify the number of lag days
+        n_days = 30
+        n_features = 27
+
+        #frame as supervised learning
+        reframed = self.series_to_supervised(scaled, n_days, 1)
+
+        #Drop the columns we won't predict
+        reframed = reframed.drop(reframed.columns[-25:-29], axis=1)
+        reframed = reframed.drop(reframed.columns[-22:], axis=1) 
+        reframed = reframed.drop(reframed.columns[-5:-1], axis=1)  # adjclose price
+        
+         var1(t-30)  var2(t-30)  var3(t-30)  var4(t-30)  var5(t-30)  var6(t-30)  ...  var23(t-1)  var24(t-1)  var25(t-1)  var26(t-1)  var27(t-1)   var5(t)
+30      0.008914    0.007674    0.009435    0.009251    0.007923    0.249154  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003788
+31      0.009409    0.008126    0.009805    0.009407    0.008056    0.307702  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003925
+32      0.009316    0.007977    0.008740    0.007971    0.006826    0.280778  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003471
+33      0.008203    0.006637    0.008015    0.007806    0.006685    0.240170  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003020
+34      0.007589    0.006637    0.008019    0.008396    0.007191    0.224192  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.001808
+        
+        #Split into train and test sets
+        values = reframed.values
+        n_train_days = 20 * 12 * 10 # one month in business days = 20 days
+        train = values[:n_train_days, :]
+        test = values[n_train_days:, :]
+
+        #split into input and outputs
+        train_X, train_y = train[:, :-1], train[:, -1]
+        test_X, test_y = test[:, :-1], test[:, -1]
+
+        #reshape input to be 3D
+        train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
+        test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
+        # print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+        # (2160, 1, 810) (2160,) (531, 1, 810) (531,)
+
+        #design network
+        data_dim = train_X.shape[2]
+        timesteps = train_X.shape[1]
+        num_classes = 10
+        batch_size = 32 
+
+        
+        
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm_1 (LSTM)                (None, 1, 50)             172200    
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 64)                29440     
+_________________________________________________________________
+dense_1 (Dense)              (None, 1)                 65        
+=================================================================
+Total params: 201,705
+Trainable params: 201,705
+Non-trainable params: 0
+_________________________________________________________________
+        
+        
+        model = Sequential()
+        model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
+        model.add(LSTM(64, return_sequences=False))
+        model.add(Dense(1, activation='linear'))
+        model.compile(loss='mae', optimizer='adam')
+
+        model.summary()
+
+        #fit network
+        history = model.fit(train_X, train_y, epochs=50, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
+
+        #plot history
+        plt.plot(history.history['loss'], label='train')
+        plt.plot(history.history['val_loss'], label='test')
+        plt.legend()
+        plt.show()
+
+        # path = os.path.abspath(__file__ + "/.." + "/models/")
+        # model.save(path+'apple_model.h5')
+        results = model.evaluate(test_X, test_y)
+        print('loss and acc: ', results)
+        print('===model saved===')
+
+
+        checkpoint_path = "training_2/cp-{epoch:04d}.ckpt"
+        checkpoint_dir = os.path.dirname(checkpoint_path)
+
+        cp_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=checkpoint_path, 
+        verbose=1, 
+        save_weights_only=True,
+        period=5)
+        model.load_weights(checkpoint_path)
+
+# 새로운 모델 객체를 만듭니다
+        model.save('my_model') 
+
+# `checkpoint_path` 포맷을 사용하는 가중치를 저장합니다
+        model.save_weights(checkpoint_path.format(epoch=0))
+        new_model = tf.keras.models.load_model('my_model')
+        new_model.summary()
+
+        test_images={120,130,110}
+        test_labels = {120}
+        loss, acc = new_model.evaluate(test_images, test_labels, verbose=2)
+        print('복원된 모델의 정확도: {:5.2f}%'.format(100*acc))
+
+        print(new_model.predict(test_images).shape)
+
+
+
+
+
+
+
+        # #make a prediction
+        # yhat = model.predict(test_X)
+        # test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
+
+        # inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
+        # inv_yhat = scaler.inverse_transform(inv_yhat)
+        # inv_yhat = inv_yhat[:,0]
+        # # invert scaling for actual
+        # test_y = test_y.reshape((len(test_y), 1))
+        # inv_y = np.concatenate((test_y, test_X[:, 1:]), axis=1)
+        # inv_y = scaler.inverse_transform(inv_y)
+        # inv_y = inv_y[:,0]
+        # # calculate RMSE
+        # rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
+        # print('Test RMSE: %.3f' % rmse)
+
+    
+if __name__ == "__main__":
+    lstm = LongShortTermModel('AAPL')
+    lstm.getting_data()
+    
+
+    # [2721 rows x 28 columns (including date)]
+    
+    '''    
 class Model:
     
     def __init__(self, learning_rate, num_layers, size, size_layer, output_size, forget_bias = 0.1,):
@@ -414,7 +593,7 @@ class NasdaqTrain():
     learning_rate : float
     
     @classmethod
-    def __init__(self):
+    def __init__(self, ticker):
         self.num_layers = 1
         self.size_layer = 128
         self.timestamp =5
@@ -423,6 +602,7 @@ class NasdaqTrain():
         self.future_day = 30
         self.learning_rate = 0.01
         self.df =None
+        self.ticker = ticker
 
     @staticmethod
     def calculate_accuracy(real, predict):
@@ -440,19 +620,24 @@ class NasdaqTrain():
             buffer.append(smoothed_val)
             last = smoothed_val
         return buffer   
-
     @classmethod
-    def train(self, ticker):
+    def hook(self):
+        r= train('TSLA')
+        acc = self.get_accuracies(r)
+        f = self.draw_forecasts(r)
+    @classmethod
+    def train(self):
 
         sns.set()
         tf.compat.v1.random.set_random_seed(1234)
 
         path = os.path.abspath(__file__+"/.."+"/saved_data")
-        filen = ticker + "_dataset.csv"
+        filen = self.ticker + "_dataset.csv"
         input_file = os.path.join(path, filen)
         df = pd.read_csv(input_file, header=0)
         df = df.dropna()
-        self.df = df
+        
+        self.df = df[-50:]
         # df.drop(['date'], axis=1, inplace=True)
         # print(df.head())
         '''
@@ -480,7 +665,7 @@ class NasdaqTrain():
         '''
         #split train and test
         test_size = 30
-        simulation_size = 10
+        simulation_size = 1
 
         df_train = df_log.iloc[:-test_size]
         df_test = df_log.iloc[-test_size:]
@@ -488,7 +673,7 @@ class NasdaqTrain():
         results = []
         for i in range(simulation_size):
             print('simulation %d' %(i + 1))
-            results.append(self.forecast(df_train, df_log, test_size, self.df, minmax, i+1, ticker))
+            results.append(self.forecast(df_train, df_log, test_size, self.df, minmax, i+1))
 
         # date_ori - pd.to_datetime(df.iloc[:, 0]).tolist()
         # for i in range(test_size):
@@ -519,17 +704,18 @@ class NasdaqTrain():
 
         path = os.path.abspath(__file__+"/.."+"/plots/")
 
-        file_name = ticker + "_prediction.png"
+        file_name = self.ticker + "_prediction1.png"
         output_file = os.path.join(path, file_name)
         plt.savefig(output_file)
 
         print('==== Saved nasdaq.ckpy + prediction.png ====')
 
     @classmethod
-    def forecast (self, df_train, df_log, test_size, df, minmax, cnt, ticker):
+    def forecast (self, df_train, df_log, test_size, df, minmax, cnt):
         tf.reset_default_graph()
         modelnn = Model(self.learning_rate, self.num_layers, df_log.shape[1], self.size_layer, 
         df_log.shape[1], self.dropout_rate)
+        
         sess = tf.InteractiveSession()
         sess.run(tf.global_variables_initializer())
         date_ori = pd.to_datetime(df.iloc[:,0]).tolist()
@@ -592,6 +778,7 @@ class NasdaqTrain():
 
         init_value = last_state
         
+        
         for i in range(future_day):
             o = output_predict[-future_day - self.timestamp + i : -future_day + i]
             out_logits, last_state = sess.run(
@@ -607,24 +794,39 @@ class NasdaqTrain():
 
         output_predict = minmax.inverse_transform(output_predict)
         deep_future = self.anchor(output_predict[:, 0], 0.3)
-
-        tickers = {'AAPL':'apple', 'TSLA': 'tesla'}
-        folder = [tickers[k] for k in tickers if k == ticker]
+        
+        tickers = {'AAPL':'new_apple', 'TSLA': 'new_tesla'}
+        folder = [tickers[k] for k in tickers if k == self.ticker]
         path2 = os.path.abspath(__file__+"/.."+"/models/"+folder[0]+"/")
+        
+        modelnn.X = np.expand_dims(output_predict, axis=0)
+        # modelnn.hidden_layer = np(modelnn.last_state).reshape(1,1 ,len(modelnn.X))
+        # print('====', modelnn.X , modelnn.hidden_layer,'====')
+        modelnn.X = int((modelnn.X[0]) )
+
+        weights = tf.Variable(tf.random_normal(modelnn.X), name='weights')
+        # biases = tf.Variable(tf.random_normal([moedlnn.X]), name='biases')
         saver  = tf.train.Saver()
-        name = '/' + ticker+ str(cnt) + '.ckpt'
-        saver.save(sess, path2+name)
+        sess = tf.Session()
+        name = '/' + self.ticker+ str(cnt)
+        sess.run(tf.global_variables_initializer())
+        saver.save(sess, path2+name, global_step=1000)
 
         return deep_future[-test_size:]
-
-'''             
+           
 if __name__ == "__main__":
-    # dataset = NasdaqDF()
+    dataset = NasdaqDF()
     # dataset.hook()
-    train = NasdaqTrain()
-    NasdaqTrain.train('AAPL')
-    NasdaqTrain.train('TSLA')
-'''
+    train = NasdaqTrain('AAPL')
+    r = train.train()
+    acc = train.get_accuracies(r)
+    train.draw_forecasts(r)
+
+    # NasdaqTrain.train()
+    # NasdaqTrain.train()
+
+
+
 
 # =============================================================
 # =============================================================
@@ -750,7 +952,7 @@ class AppleService(object):
     
 
     def __init__(self):
-        self.path = os.path.abspath(__file__+"/.."+"/models/apple/")
+        self.path = os.path.abspath(__file__+"/.."+"/models/tesla/")
 
     def assign(self, param):
         self.open = param.open
@@ -761,25 +963,25 @@ class AppleService(object):
 
     def predict(self):
         print('====in predict func ====')
-        X = tf.placeholder(tf.float32, shape=[None, 3])
-        W = tf.Variable(tf.random_normal([3,1]), name='weight')
-        b = tf.Variable(tf.random_normal([1], name='bias'))
-        saver = tf.train.Saver()
-        result = []
-        with tf.Session() as sess:
-            saver.restore(sess, self.path+'/AAPL1.ckpt')
-            sess.run(tf.global_variables_initializer())
-
+        sess = tf.Session()
+        saver = tf.train.import_meta_graph(self.path+'/TSLA10.ckpt.meta')
+        # saver.restore(sess, tf.train.latest_checkpoint(self.path))
+        saver.restore(sess, self.path+'/TSLA10.ckpt')
+        all_vars = tf.get_collection('vars')
+        for v in all_vars:
+            v_ = sess.run(v)
+            print(v_)
             # fname = '/' + self.ticker + str(i+1) + '.ckpt'
             # print('File NAME: ', fname)
             # saver.restore(sess, self.path+fname)
-            data = [[self.open, self.high, self.low], ]                
-            arr = np.array(data, dtype=np.float32)
-            dict = sess.run(tf.matmul(X,W)+b, feed_dict={X:arr[0,3]})
-            print ('dict!!' , dict[0])
+            # data = [[self.open, self.high, self.low], ]                
+            # arr = np.array(data, dtype=np.float32)
+            # print({X:arr[0,3]})
+            # dict = sess.run(tf.matmul(X,W)+b, feed_dict={X:arr[0,3]})
+            # print ('dict!!' , dict[0])
         # avg_pred = sum(result)/len(result)
-        return dict[0]
-
+        # return dict[0]
+'''
 if __name__ == "__main__":
 
     service = AppleService()
@@ -787,7 +989,8 @@ if __name__ == "__main__":
     apple.open = 120
     apple.high = 125
     apple.low = 118
-    apple.ticker = 'AAPL'
+    apple.ticker = 'TSLA'
     service.assign(apple)
     price = service.predict()
     print ("price is ", price)
+'''

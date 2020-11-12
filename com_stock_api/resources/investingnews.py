@@ -139,10 +139,6 @@ class InvestingPro:
         vader = SentimentIntensityAnalyzer()
         col = ['ticker', 'date', 'link', 'headline', 'content']
         news_with_scores = pd.DataFrame(news_list, columns=col)
-        # news_with_scores = pd.read_csv(news_list)
-        # iterating the columns 
-        # print(news_with_scores['content'].dtype)
-        # processed = news_with_scores['content']
         scores =news_with_scores['content'].apply(vader.polarity_scores).tolist()
         scores_df = pd.DataFrame(scores)
         news_with_scores = news_with_scores.join(scores_df, rsuffix='_right')
