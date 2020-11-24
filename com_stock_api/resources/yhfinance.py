@@ -133,7 +133,6 @@ class YHFinanceVo:
 Session = openSession()
 session = Session()
 
-
 class YHFinanceDao(YHFinanceDto):
 
     @staticmethod
@@ -190,8 +189,8 @@ class YHFinanceDao(YHFinanceDto):
         return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),date__range=(start_date, end_date)))
     @classmethod
     def find_today_one(cls, tic):
-        today = datetime.today()
-        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),YHFinanceDto.date.like(today)))
+        return session.query(YHFinanceDto).filter(and_(YHFinanceDto.ticker.ilike(tic),YHFinanceDto.id == session.query(func.max(YHFinanceDto.id))))
+
 
 # =============================================================
 # =============================================================
@@ -200,7 +199,7 @@ class YHFinanceDao(YHFinanceDto):
 # =============================================================
 
 
-parser = reqparse.RequestParser()
+parser= reqparse.RequestParser()
 parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
 parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
@@ -234,6 +233,7 @@ class YHFinance(Resource):
             return stock.json()
         return {'message': 'The stock was not found'}, 404
 
+
     def put(id):
         data = YHFinance.parser.parse_args()
         stock = YHFinanceDao.find_by_id(id)
@@ -264,7 +264,6 @@ class TeslaGraph(Resource):
         data = YHFinanceDao.find_all_by_ticker(stock)
         return data, 200
 
-
     @staticmethod
     def post():
         print("=====yhfinance.py / TeslaGraph's post")
@@ -284,7 +283,6 @@ class AppleGraph(Resource):
         stock.ticker = 'AAPL'
         data = YHFinanceDao.find_all_by_ticker(stock)
         return data, 200
-
 
     @staticmethod
     def post():

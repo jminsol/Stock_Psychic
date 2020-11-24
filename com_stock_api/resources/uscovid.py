@@ -35,9 +35,6 @@ class USCovidPro :
 # finaldf.to_csv(path+"/ca.csv", index=False)
 
 
-# # print(finaldf.head())
-# '''
-
 #2. Change their date type, float to integer
     def hook(self):
         df = pd.read_csv(self.path+"/ca.csv")
@@ -77,9 +74,6 @@ class USCovidDto(db.Model):
         self.total_deaths = total_deaths
         self.ca_cases = ca_cases
         self.ca_deaths = ca_deaths
-
-    # def __json__(self):
-    #     return ['date', 'total_cases', 'total_deaths', 'ca_cases', 'ca_deaths']
 
     def __repr__(self):
         return f'USCovid(id=\'{self.id}\', date=\'{self.date}\', total_cases=\'{self.total_cases}\',\
@@ -245,8 +239,8 @@ class USCovids(Resource):
 
 
 
-if __name__ == "__main__":
-    us = USCovids()
-    a =us.get()
+# if __name__ == "__main__":
+#     us = USCovids()
+#     a =us.get()
 
 

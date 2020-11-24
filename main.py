@@ -2,7 +2,6 @@ from flask import Flask
 from flask_restful import Api
 from com_stock_api.ext.db import url, db
 from com_stock_api.ext.routes import initialize_routes
-from com_stock_api.resources.nasdaq_prediction import NasdaqPredictionDao
 from com_stock_api.resources.uscovid import USCovidDao
 from com_stock_api.resources.yhfinance import YHFinanceDao
 from com_stock_api.resources.investingnews import InvestingDao
@@ -12,7 +11,6 @@ from com_stock_api.resources.member import MemberDao
 from com_stock_api.resources.board import BoardDao
 from com_stock_api.resources.comment import CommentDao
 from com_stock_api.resources.trading import TradingDao
-from com_stock_api.resources.recommend_stock import RecommendStockDao
 
 from com_stock_api.resources.korea_news import NewsDao
 from com_stock_api.resources.korea_covid import KoreaDao
@@ -59,11 +57,6 @@ with app.app_context():
     print(f'Recent news Total Count is {count4[0]}')
     if count4[0] == 0:
         RecentNewsDao.bulk()
-
-    count5 = NasdaqPredictionDao.count()
-    print(f'Nasdap Prediction Total Count is {count5}')
-    if count5 == 0:
-        NasdaqPredictionDao.bulk()
 
     count = MemberDao.count()
     print(f'Members Total Count is {count}')

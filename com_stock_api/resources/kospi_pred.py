@@ -242,7 +242,3 @@ class lginnotek_pred(Resource):
         stock.ticker = args.ticker
         data = KospiDao.find_all_by_ticker(stock)
         return data[0], 200
-
-
-
-        

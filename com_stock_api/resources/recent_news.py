@@ -74,8 +74,6 @@ class RecentNewsPro:
             
             # Get published date and time
             date_time = self.get_published_datetime(time)
-            print('====date_time====')
-            print(date_time)
             if (date_time[0]!=0):
                 d= date_time[0]
             the_most_recent.append(d)

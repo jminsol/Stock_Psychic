@@ -43,8 +43,6 @@ class KoreaStock():
         self.stock_code = stock_code
     
     def search_stock(self,company):
-
-        print("=====1========")
         result=[]
 
         stock_code = self.stock_code
@@ -53,10 +51,8 @@ class KoreaStock():
         
         for i in range(1,100):
             try:
-                print("=====2========")
                 url='https://finance.naver.com/item/sise_day.nhn?code='+str(plusUrl)+'&page={}'.format(i)
             except: 
-                print("=====error========")
                 pass
             response=requests.get(url)
             text=response.text
@@ -93,7 +89,7 @@ class KoreaStock():
                 df_result.drop(['up/down', 'pastday'], axis='columns', inplace=True)
                 #df_result['date']=pd.to_datetime(df_result['date'].astype(str), format='%Y/%m/%d')
                 #df_result.set_index('date', inplace=True)
-                time.sleep( random.uniform(2,4) )
+                #time.sleep( random.uniform(2,4) )
         return df_result
                 
 
@@ -133,7 +129,7 @@ class StockDto(db.Model):
         return f'id={self.id}, date={self.date}, open={self.open},\
             close={self.close}, high={self.high}, low={self.low}, volume={self.volume}, ticker={self.ticker}'
             
-    @property
+
     def json(self):
         return {
             'id':self.id,
@@ -170,26 +166,20 @@ class StockDao(StockDto):
 
     def bulk(self): 
         path = self.data
-        krs = KoreaStock()
-        krs.new_model()
+        # krs = KoreaStock()
+        # krs.new_model()
         companys = ['lg화학','lg이노텍']
         
         for com in companys:
-            
-            '''
-            # 1. This is when you have to do data mining! (Takes too much time here)
             print(f'company:{com}')          
-            df = krs.search_stock(com)
-            '''
+            # df = krs.search_stock(com)
             if com =='lg화학':
                 com ='lgchem'
             elif com =='lg이노텍':
                 com='lginnotek'
-            # df.to_csv(path + '/'+com+'.csv')
-            
-            #2. When you already have a file in 'data' folder...
             file_name = com +'.csv'
             input_file = os.path.join(path,file_name)
+            # df.to_csv(path + '/'+com+'.csv')
             df = pd.read_csv(input_file ,encoding='utf-8',dtype=str)
             print(df.head())            
             session.bulk_insert_mappings(StockDto, df.to_dict(orient='records'))

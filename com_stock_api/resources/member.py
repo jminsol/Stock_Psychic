@@ -22,8 +22,8 @@ import json
 
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
-# import tensorflow_datasets as tfds
-# import tensorflow_hub as hub
+import tensorflow_datasets as tfds
+import tensorflow_hub as hub
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -334,7 +334,7 @@ class MemberModelingDataPreprocessing:
 
     @staticmethod
     def gender_nominal(this):
-        gender_mapping = {'Male': 0, 'Female': 1, 'Etc.': 2}
+        gender_mapping = {'Etc.': 0, 'Male': 1, 'Female': 2}
         this.train['gender'] = this.train['gender'].map(gender_mapping)
         this.train = this.train
         return this
@@ -553,20 +553,27 @@ class MemberDao(MemberDto):
 
     @classmethod
     def find_by_email(cls, email):
+        sql = cls.query.filter(cls.email.like(f'%{email}%'))
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        # print(json.loads(df.to_json(orient='records')))
+        return json.loads(df.to_json(orient='records'))
+
+    @classmethod
+    def find_by_email_exactly(cls, email):
         sql = cls.query.filter(cls.email.like(email))
         df = pd.read_sql(sql.statement, sql.session.bind)
-        print(json.loads(df.to_json(orient='records')))
+        # print(json.loads(df.to_json(orient='records')))
+        return json.loads(df.to_json(orient='records'))
+
+    @classmethod
+    def find_by_name(cls, name):
+        sql = cls.query.filter(cls.name.like(f'%{name}%'))
+        df = pd.read_sql(sql.statement, sql.session.bind)
         return json.loads(df.to_json(orient='records'))
 
     @classmethod
     def find_high_proba_churn(cls):
         sql = cls.query.filter(and_(cls.exited != 1, cls.probability_churn > 0.6)).order_by(cls.probability_churn.desc())
-        df = pd.read_sql(sql.statement, sql.session.bind)
-        return json.loads(df.to_json(orient='records'))
-
-    @classmethod
-    def find_by_name(cls, member):
-        sql = cls.query.filter(cls.name.like(member.name))
         df = pd.read_sql(sql.statement, sql.session.bind)
         return json.loads(df.to_json(orient='records'))
     
@@ -581,8 +588,17 @@ class MemberDao(MemberDto):
 
     @staticmethod
     def save(member):
+        mcp = MemberChurnPredService()
+        mcp.assign(member)
+        prediction = mcp.predict()
+        
+        prediction = round(prediction[0, 0], 5)
+        print(f'PREDICTION: {prediction}')
+        member.probability_churn = float(prediction)
+
         db.session.add(member)
         db.session.commit()
+        db.session.close()
 
     @staticmethod
     def insert_many():
@@ -597,17 +613,22 @@ class MemberDao(MemberDto):
         refined_members = mmdp.hook_process(df)
         print(f'REFINED_MEMBERS: \n{refined_members}')
         refined_members = refined_members.drop('exited', axis=1)
-        refined_members = [np.array(refined_members, dtype = np.float32)]
+        refined_members = [np.array(refined_members, dtype=np.float32)]
         print(f'REFINED_MEMBERS AFTER NUMPY ARRAY: \n{refined_members}')
 
+
         path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'models', 'member')
-        new_model = tf.keras.models.load_model(os.path.join(path, 'member_churn.h5'))
+        new_model = tf.keras.models.load_model(os.path.join(path, 'member_churn.h5'), compile=False)
 
         model_pred = new_model.predict(refined_members)
         print(f'MODEL PREDICTION: {model_pred}')
 
         df['probability_churn'] = model_pred
         print(f'LAST DATAFRAME: {df}')
+
+        # admin = {'email': 'admin@stockpsychic.com', 'password': '1234', 'name': 'Admin', 'profile': 'noimage.png', 'geography': 'Spain',
+        # 'gender': '', 'age': '', 'tenure': 100, 'stock_qty': 0, 'balance': 0, 'as_credit': 0, 'credit_score': 0, 'is_active_member': 1, 
+        # 'estimated_salary': 0, 'role': 'ROLE_ADMIN', 'probability_churn': -1, 'exited': 0}
 
         session.bulk_insert_mappings(MemberDto, df.to_dict(orient="records"))
         session.commit()
@@ -618,12 +639,23 @@ class MemberDao(MemberDto):
     def update(member):
         Session = openSession()
         session = Session()
+        
+        mcp = MemberChurnPredService()
+        mcp.assign(member)
+        prediction = mcp.predict()
+        
+        prediction = round(prediction[0, 0], 5)
+        print(f'PREDICTION: {prediction}')
+        member.probability_churn = float(prediction)
+
+        print(member)
+
         member = session.query(MemberDto)\
         .filter(MemberDto.email==member.email)\
-        .update({MemberDto.password: member['password'], MemberDto.name: member['name'], MemberDto.profile: member['profile'], MemberDto.geography: member['geography'],
-        MemberDto.gender: member['gender'], MemberDto.age: member['age'], MemberDto.tenure: member['tenure'], MemberDto.stock_qty: member['stock_qty'], MemberDto.balance: member['balance'],
-        MemberDto.has_credit: member['has_credit'], MemberDto.credit_score: member['credit_score'], MemberDto.is_active_member: member['is_active_member'], MemberDto.estimated_salary: member['estimated_salary'],
-        MemberDto.role: member['role'], MemberDto.probability_churn: member['probability_churn'], MemberDto.exited: member['exited']})
+        .update({MemberDto.password: member.password, MemberDto.name: member.name, MemberDto.profile: member.profile, MemberDto.geography: member.geography,
+        MemberDto.gender: member.gender, MemberDto.age: member.age, MemberDto.tenure: member.tenure, MemberDto.stock_qty: member.stock_qty, MemberDto.balance: member.balance,
+        MemberDto.has_credit: member.has_credit, MemberDto.credit_score: member.credit_score, MemberDto.is_active_member: member.is_active_member, MemberDto.estimated_salary: member.estimated_salary,
+        MemberDto.role: member.role, MemberDto.probability_churn: member.probability_churn, MemberDto.exited: member.exited})
         session.commit()
         session.close()
     
@@ -649,7 +681,6 @@ class MemberDao(MemberDto):
 
 
 
-
 class MemberChurnPredModel(object):
     
     x_train: object = None
@@ -670,6 +701,7 @@ class MemberChurnPredModel(object):
         self.train_model()
         self.eval_model()
         self.save_model()
+        self.load_model()
         self.debug_model()
 
         
@@ -705,7 +737,11 @@ class MemberChurnPredModel(object):
         print('********** create model **********')
         model = tf.keras.Sequential()
         model.add(tf.keras.layers.Dense(16, activation='relu'))
+        model.add(tf.keras.layers.Dropout(0.5))
+        model.add(tf.keras.layers.Dense(16, activation='relu'))
+        model.add(tf.keras.layers.Dropout(0.5))
         model.add(tf.keras.layers.Dense(1, activation='sigmoid')) # output
+
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
         self.model = model
  
@@ -715,10 +751,11 @@ class MemberChurnPredModel(object):
         checkpoint_path = os.path.join(self.path, 'member_churn_train', 'cp.ckpt')
         cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True, verbose=1)
         
-        self.model.fit(self.x_train, self.y_train, epochs=50, callbacks=[cp_callback], validation_data=(self.x_validation, self.y_validation), verbose=1)  
+        self.model.fit(self.x_train, self.y_train, epochs=500, callbacks=[cp_callback], validation_data=(self.x_validation, self.y_validation), verbose=1)  
+        # self.get_data()
+        # self.model.fit(self.x_train, self.y_train, epochs=5000, callbacks=[cp_callback], validation_data=(self.x_validation, self.y_validation), verbose=1)  
 
         self.model.load_weights(checkpoint_path)
-        
         self.model.save_weights(checkpoint_path.format(epoch=0))
         
     # 모델 평가
@@ -730,6 +767,13 @@ class MemberChurnPredModel(object):
 
     def save_model(self):
         self.model.save(os.path.join(self.path, 'member_churn.h5'))
+    
+    def load_model(self):
+        self.new_model = tf.keras.models.load_model(os.path.join(self.path, 'member_churn.h5'))
+        self.new_model.summary()
+        self.get_data()
+        loss, acc = self.new_model.evaluate(self.x_test, self.y_test, verbose=2)
+        print('Accuracy of NEW Model: {:5.2f}%'.format(100 * acc))
  
     # 모델 디버깅
     def debug_model(self):
@@ -774,6 +818,7 @@ class MemberChurnPredService(object):
 
         mmdp = MemberModelingDataPreprocessing()
         refined_member = mmdp.hook_process(member)
+        print(refined_member)
     
         self.geography = refined_member['geography'][0]
         self.gender = refined_member['gender'][0]
@@ -787,12 +832,14 @@ class MemberChurnPredService(object):
         self.AgeGroup = refined_member['AgeGroup'][0]
 
     def predict(self):
-        new_model = tf.keras.models.load_model(os.path.join(self.path, 'member_churn.h5'))
-        new_model.summary()
+        
 
         data = [[self.geography, self.gender, self.tenure, self.stock_qty, self.balance, self.has_credit,
          self.credit_score, self.is_active_member, self.estimated_salary, self.AgeGroup], ]
         print(f'predict data: \n {data}')
+
+        new_model = tf.keras.models.load_model(os.path.join(self.path, 'member_churn.h5'))
+        new_model.summary()
         data = np.array(data, dtype = np.float32)
         
         pred = new_model.predict(data)
@@ -856,7 +903,6 @@ class Member(Resource):
     def get(email: str):
         try:
             member = MemberDao.find_by_email(email)
-            print(f'member: {member}')
             if member:
                 return member
         except Exception as e:
@@ -866,6 +912,7 @@ class Member(Resource):
     @staticmethod
     def put(email: str):
         args = parser.parse_args()
+        args = MemberDto(**args)
         print(f'Member {args} updated')
         try:
             MemberDao.update(args)
@@ -901,21 +948,12 @@ class Auth(Resource):
         print(f'body: {body}')
         member = MemberDto(**body)
 
-        if len(MemberDao.find_by_email(member.email)) > 0:
+        if len(MemberDao.find_by_email_exactly(member.email)) > 0:
             return {'message': 'already exist'}, 500
 
-        mcp = MemberChurnPredService()
-        mcp.assign(member)
-        prediction = mcp.predict()
-        
-        prediction = round(prediction[0, 0], 5)
-        print(f'PREDICTION: {prediction}')
-        member.probability_churn = float(prediction)
-
         MemberDao.save(member)
-
-        email = member.email
-        return {'email': str(email)}, 200
+        # email = member.email
+        return  200
     
 class Access(Resource):
 
@@ -938,5 +976,23 @@ class Access(Resource):
 class HighChurnMembers(Resource):
 
     def get(self):
-        members = MemberDao.find_high_proba_churn()
-        return members, 200
+        try:
+            members = MemberDao.find_high_proba_churn()
+            if members:
+                return members, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Members not found'}, 404
+
+class MemberNameSearch(Resource):
+
+    @staticmethod
+    def get(name):
+        try:
+            member = MemberDao.find_by_name(name)
+            # print(f'member: {member}')
+            if member:
+                return member, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Member not found'}, 404

@@ -15,14 +15,22 @@ from com_stock_api.utils.file_helper import FileReader
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-# from sklearn.metrics import mean_squared_error
-# from keras.layers import Dense
-# from keras.layers import LSTM
-# from keras.models import Sequential
+from sklearn.metrics import mean_squared_error
+from tensorflow.keras.layers import Dense, LSTM, Dropout, BatchNormalization, Reshape
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.callbacks import ModelCheckpoint
+import tensorflow.python.keras.backend as K
+from tensorflow import keras
+from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
+from sklearn.model_selection import KFold, cross_val_score
+
+
+
 os.environ['TF_CPP_MIN_LOG_LEVEL']='3'
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
-tf.logging.set_verbosity(tf.logging.ERROR)
+# tf.logging.set_verbosity(tf.logging.ERROR)
 
 from tqdm import tqdm
 
@@ -31,65 +39,6 @@ from tqdm import tqdm
 # ===================      Modeling    ========================
 # =============================================================
 # =============================================================
-
-class NasdaqPredictionDto(db.Model):
-    __tablename__ = 'NASDAQ_prediction'
-    __table_args__={'mysql_collate':'utf8_general_ci'}
-
-    id: int = db.Column(db.Integer, primary_key = True, index = True)
-    ticker: str = db.Column(db.String(30))
-    date: str = db.Column(db.Date)
-    pred_price: float = db.Column(db.Float)
-    open: float = db.Column(db.Float)
-    high: float = db.Column(db.Float)
-    low: float = db.Column(db.Float)
-    close: float = db.Column(db.Float)
-    stock_id: int = db.Column(db.Integer, db.ForeignKey(YHFinanceDto.id))
-    covid_id : int = db.Column(db.Integer, db.ForeignKey(USCovidDto.id))
-    news_id: int = db.Column(db.Integer, db.ForeignKey(InvestingDto.id))
-
-
-    def __init__(self, ticker, date, pred_price, open, high, low, close, stock_id, covid_id, news_id):
-        self.ticker = ticker
-        self.date = date
-        self.pred_price = pred_price
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-
-        self.stock_id = stock_id
-        self.covid_id = covid_id
-        self.news_id = news_id
-
-    def __repr__(self):
-        return f'NASDAQ_Prediction(id=\'{self.id}\',ticker=\'{self.ticker}\',date=\'{self.date}\', pred_price=\'{self.pred_price}\',\
-                open=\'{self.open}\',high=\'{self.high}\',low=\'{self.low}\',close=\'{self.close}\',\
-                stock_id=\'{self.stock_id}\',covid_id=\'{self.covid_id}\', news_id=\'{self.news_id}\' )'
-
-    @property
-    def json(self):
-        return {
-            'id' : self.id,
-            'ticker' : self.ticker,
-            'date' : self.date,
-            'pred_price' : self.pred_price,
-            'open': self.open,
-            'high': self.high,
-            'low': self.low,
-            'close': self.close,
-            'stock_id' : self.stock_id,
-            'covid_id' : self.covid_id,
-            'news_id' : self.news_id
-        }
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-
-    def delete(self):
-        db.session.delete(self)
-        db.session.commint()
 
 class NasdaqPredictionVo:
     id: int = 0
@@ -100,81 +49,8 @@ class NasdaqPredictionVo:
     high: float = 0.0
     low: float = 0.0
     close: float = 0.0
-    stock_id : str = ''
-    covid_id : str = ''
-    news_id : str = ''
-
-
-Session = openSession()
-session = Session()
-
-class NasdaqPredictionDao(NasdaqPredictionDto):
-
-    @staticmethod
-    def count():
-        return session.query(func.count(NasdaqPredictionDto.id)).one()
-
-    @staticmethod
-    def save(data):
-        db.session.add(data)
-        db.session.commit()
-    @staticmethod
-    def update(data):
-        db.session.add(data)
-        db.session.commit()
-
-    @classmethod
-    def delete(cls, id):
-        data = cls.query.get(id)
-        db.session.delete(data)
-        db.session.commit()
-        
-    @classmethod
-    def find_all(cls):
-        sql = cls.query
-        df = pd.read_sql(sql.statement, sql.session.bind)
-        return json.loads(df.to_json(orient='records'))
-
-
-    @staticmethod   
-    def bulk():
-        tickers = ['AAPL', 'TSLA']
-        for tic in tickers:
-            path = os.path.abspath(__file__+"/.."+"/data/")
-            file_name = tic + '_pred.csv'
-            input_file = os.path.join(path,file_name)
-
-            df = pd.read_csv(input_file)
-            print(df.head())
-            session.bulk_insert_mappings(NasdaqPredictionDto, df.to_dict(orient="records"))
-            session.commit()
-        session.close()
-
-    @classmethod
-    def find_all_by_ticker(cls, stock):
-        sql = cls.query
-        df = pd.read_sql(sql.statement, sql.session.bind)
-        df = df[df['ticker']==stock.ticker]
-        return json.loads(df.to_json(orient='records'))
-
-    
-    @classmethod
-    def find_by_date(cls, date, tic):
-        return session.query.filter(and_(cls.date.like(date), cls.ticker.ilike(tic)))
-    @classmethod
-    def find_by_ticker(cls, tic):
-        print("In find_by_ticker")
+    compound : float = 0.0
    
-        return session.query(NasdaqPredictionDto).filter((NasdaqPredictionDto.ticker.ilike(tic))).order_by(NasdaqPredictionDto.date).all()
-        
-    @classmethod
-    def find_by_period(cls,tic, start_date, end_date):
-        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),date__range=(start_date, end_date)))
-    @classmethod
-    def find_today_one(cls, tic):
-        today = datetime.today()
-        return session.query(NasdaqPredictionDto).filter(and_(NasdaqPredictionDto.ticker.ilike(tic),NasdaqPredictionDto.date.like(today)))
-
 
 # =============================================================
 # =============================================================
@@ -377,71 +253,47 @@ class NasdaqDF():
         plt.savefig(output_file2)
         print('=== Saved heatmap ===')
 
-    '''
+    
 class LongShortTermModel:
     def __init__(self, ticker):
         self.ticker = ticker
         self.path = os.path.abspath(__file__+"/.."+"/saved_data")
+        if self.ticker == 'AAPL':
+            self.model_path = os.path.abspath(__file__+"/.."+"/models/apple")
+        else:
+            self.model_path = os.path.abspath(__file__+"/.."+"/models/tesla")
+        self.features = None
+        self.timesteps = None
 
-    @staticmethod
-    def series_to_supervised(data, n_in=1, n_out=1):
-        n_vars = 1 if type(data) is list else data.shape[1]
-        df = pd.DataFrame(data)
-        cols, names = list(), list()
-
-        #input sequence (t-n, ..., t-1)
-        for i in range(n_in, 0, -1):
-            cols.append(df.shift(i))
-            names+=[('var%d(t-%d)' % (j+1, i)) for j in range(n_vars)]
-
-        #forecast sequence (t, t+1, ..., t+n)
-        for i in range(0, n_out):
-            cols.append(df.shift(-i))
-            if i ==0:
-                names += [('var%d(t)' % (j+1)) for j in range(n_vars)]
-            else:
-                names += [('var%d(t+%d)' % (j+1, i)) for j in range(n_vars) ]
+    def hook(self):
+        train_X, train_y, test_X, test_y = self.getting_data()
+        self.save_model(train_X, train_y, test_X, test_y)
+        self.eval_model(train_X, test_X, test_y)
         
-        #put it all together
-        agg = pd.concat(cols, axis =1)
-        agg.columns = names
-        agg.dropna(inplace=True)
-        return agg
-        
-    
     def getting_data(self):
         filen = self.ticker + "_dataset.csv"
         input_file = os.path.join(self.path, filen)
         #load dataset
         df = pd.read_csv(input_file, header=0)
+        df = df.drop(['close', 'volume'], axis=1)
+       
+        # get a list of columns
+        cols = list(df)
+       
+        # move the column to tail of list using index, pop and insert
+        cols.insert(25, cols.pop(cols.index('adjclose')))
+        df = df.loc[:, cols] 
         df = df.set_index('date')
         values = df.values
+       
+        #normalize data
         scaler = MinMaxScaler(feature_range=(0,1))
         scaled = scaler.fit_transform(values)
-        #specify the number of lag days
-        n_days = 30
-        n_features = 27
 
-        #frame as supervised learning
-        reframed = self.series_to_supervised(scaled, n_days, 1)
-
-        #Drop the columns we won't predict
-        reframed = reframed.drop(reframed.columns[-25:-29], axis=1)
-        reframed = reframed.drop(reframed.columns[-22:], axis=1) 
-        reframed = reframed.drop(reframed.columns[-5:-1], axis=1)  # adjclose price
-        
-         var1(t-30)  var2(t-30)  var3(t-30)  var4(t-30)  var5(t-30)  var6(t-30)  ...  var23(t-1)  var24(t-1)  var25(t-1)  var26(t-1)  var27(t-1)   var5(t)
-30      0.008914    0.007674    0.009435    0.009251    0.007923    0.249154  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003788
-31      0.009409    0.008126    0.009805    0.009407    0.008056    0.307702  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003925
-32      0.009316    0.007977    0.008740    0.007971    0.006826    0.280778  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003471
-33      0.008203    0.006637    0.008015    0.007806    0.006685    0.240170  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.003020
-34      0.007589    0.006637    0.008019    0.008396    0.007191    0.224192  ...    0.492738    0.000000    0.000000    0.000000    0.000000  0.001808
-        
         #Split into train and test sets
-        values = reframed.values
         n_train_days = 20 * 12 * 10 # one month in business days = 20 days
-        train = values[:n_train_days, :]
-        test = values[n_train_days:, :]
+        train = scaled[:n_train_days, :]
+        test = scaled[n_train_days:, :]
 
         #split into input and outputs
         train_X, train_y = train[:, :-1], train[:, -1]
@@ -450,380 +302,113 @@ class LongShortTermModel:
         #reshape input to be 3D
         train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
         test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
-        # print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
-        # (2160, 1, 810) (2160,) (531, 1, 810) (531,)
+        # (2400, 1, 25) (2400,) (321, 1, 25) (321,)
 
+        self.features = train_X.shape[2]
+        self.timesteps = train_X.shape[1]
+        
+        return train_X, train_y, test_X, test_y
+
+    def create_model(self):
+       
         #design network
-        data_dim = train_X.shape[2]
-        timesteps = train_X.shape[1]
         num_classes = 10
         batch_size = 32 
 
-        
-        
-_________________________________________________________________
-Layer (type)                 Output Shape              Param #   
-=================================================================
-lstm_1 (LSTM)                (None, 1, 50)             172200    
-_________________________________________________________________
-lstm_2 (LSTM)                (None, 64)                29440     
-_________________________________________________________________
-dense_1 (Dense)              (None, 1)                 65        
-=================================================================
-Total params: 201,705
-Trainable params: 201,705
-Non-trainable params: 0
-_________________________________________________________________
-        
-        
         model = Sequential()
-        model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
-        model.add(LSTM(64, return_sequences=False))
-        model.add(Dense(1, activation='linear'))
-        model.compile(loss='mae', optimizer='adam')
+
+        drop_out = 0.3
+        lr=0.0001
+        model.add(LSTM(units=600, input_shape=(self.timesteps, self.features)))
+        model.add(Dense(units=200, activation='tanh'))
+        model.add(Dropout(drop_out))
+        model.add(Dense(units=1, activation='sigmoid'))
+        model.compile(optimizer=Adam(lr=lr, amsgrad=True), loss='mse', metrics=['mae', 'mse']) 
 
         model.summary()
-
-        #fit network
-        history = model.fit(train_X, train_y, epochs=50, batch_size=72, validation_data=(test_X, test_y), verbose=2, shuffle=False)
-
-        #plot history
-        plt.plot(history.history['loss'], label='train')
-        plt.plot(history.history['val_loss'], label='test')
-        plt.legend()
-        plt.show()
-
-        # path = os.path.abspath(__file__ + "/.." + "/models/")
-        # model.save(path+'apple_model.h5')
-        results = model.evaluate(test_X, test_y)
-        print('loss and acc: ', results)
-        print('===model saved===')
+        return model
 
 
-        checkpoint_path = "training_2/cp-{epoch:04d}.ckpt"
+
+    def save_model(self, train_X, train_y, test_X, test_y):
+
+        checkpoint_path = os.path.join(self.model_path, 'checkpoint.h5')
         checkpoint_dir = os.path.dirname(checkpoint_path)
 
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_path, 
-        verbose=1, 
-        save_weights_only=True,
-        period=5)
+        model = self.create_model()
+        cp_callback = ModelCheckpoint(filepath=checkpoint_path, verbose=1)
+
+        #fit network for APPLE
+        # history=model.fit(train_X, train_y, epochs=100, batch_size=200, validation_data=(test_X, test_y), verbose=1, shuffle=False, callbacks=[cp_callback])
+        
+        #fit network for TESLA
+        history=model.fit(train_X, train_y, epochs=75, batch_size=200, validation_data=(test_X, test_y), verbose=1, shuffle=False, callbacks=[cp_callback])
+        #plot history
+        model.save(checkpoint_path)
+        y_pred = model.predict(test_X,verbose=1, batch_size=100)
+        print(y_pred[:5])
+        print('expected: ', test_y[:5])
+
+        plt.plot(test_y, label="price-original")
+        plt.plot(y_pred, label="price-predicted")
+        plt.legend()
+        plt.show()
+
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model train vs validation loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'validation'], loc='upper right')
+        plt.show()
+        
+
+    def eval_model(self,train_X, test_X, test_y):
+
+        checkpoint_path = os.path.join(self.model_path, 'checkpoint.h5')
+
+        # 기본 모델 객체를 만듭니다
+        model = self.create_model()
+
+        # 모델을 평가합니다
+        loss, mae, mse = model.evaluate(test_X,  test_y, verbose=2)
+        print("Mean Absolute Error before loading weights: ${:5.2f} ".format(mae))
+
+        # 가중치 로드
         model.load_weights(checkpoint_path)
 
-# 새로운 모델 객체를 만듭니다
-        model.save('my_model') 
+        # 모델 재평가
+        loss, mae, mse = model.evaluate(test_X,  test_y, verbose=2)
+        print("Mean Absolute Error after loading weights: ${:5.2f} ".format(mae))
 
-# `checkpoint_path` 포맷을 사용하는 가중치를 저장합니다
-        model.save_weights(checkpoint_path.format(epoch=0))
-        new_model = tf.keras.models.load_model('my_model')
+        new_model = keras.models.load_model(checkpoint_path)
         new_model.summary()
 
-        test_images={120,130,110}
-        test_labels = {120}
-        loss, acc = new_model.evaluate(test_images, test_labels, verbose=2)
-        print('복원된 모델의 정확도: {:5.2f}%'.format(100*acc))
-
-        print(new_model.predict(test_images).shape)
+        loss, mae, mse = new_model.evaluate(test_X,  test_y, verbose=2)
+        print("NEW MODEL Mean Absolute Error after loading weights: ${:5.2f} ".format(mae))
 
 
+        #test for apple
+        x = [[118.64, 117.62, 117.08, 117.5 , 0.01, 0,503.50,522.22, 501.79, 519.58, 519.58, 739000, 724000, 748000, 735000, 164000, 163000, 164000, 161000,0 , 13904, 39, 1784, 2]]
+        #test for tesla
+        y =[[503.50,522.22, 501.79, 510.5 , 0.05, 0,118.64, 117.62, 117.08, 113.88, 113.88, 739000, 724000, 748000, 735000, 164000, 163000, 164000, 161000,0 , 13904, 39, 1784, 2]]
+        #normalize data
+        scaler = MinMaxScaler(feature_range=(0,1))
+        scaled = scaler.fit_transform(x)
+        X = scaled.reshape((scaled.shape[0], 1, scaled.shape[1]))
 
-
-
-
-
-        # #make a prediction
-        # yhat = model.predict(test_X)
-        # test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
-
-        # inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
-        # inv_yhat = scaler.inverse_transform(inv_yhat)
-        # inv_yhat = inv_yhat[:,0]
-        # # invert scaling for actual
-        # test_y = test_y.reshape((len(test_y), 1))
-        # inv_y = np.concatenate((test_y, test_X[:, 1:]), axis=1)
-        # inv_y = scaler.inverse_transform(inv_y)
-        # inv_y = inv_y[:,0]
-        # # calculate RMSE
-        # rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
-        # print('Test RMSE: %.3f' % rmse)
+        price = new_model.predict(X)
+        scaled[0,0]=price[0,0]
+        unscaled = scaler.inverse_transform(scaled)
+        print('price:' ,unscaled[0,0])
 
     
-if __name__ == "__main__":
-    lstm = LongShortTermModel('AAPL')
-    lstm.getting_data()
+# if __name__ == "__main__":
+#     # lstm = LongShortTermModel('AAPL')
+#     lstm = LongShortTermModel('TSLA')
+#     lstm.hook()
     
-
-    # [2721 rows x 28 columns (including date)]
-    
-    '''    
-class Model:
-    
-    def __init__(self, learning_rate, num_layers, size, size_layer, output_size, forget_bias = 0.1,):
-        def lstm_cell(size_layer):
-            return tf.nn.rnn_cell.LSTMCell(size_layer, state_is_tuple=False)
-
-        rnn_cells = tf.nn.rnn_cell.MultiRNNCell(
-            [lstm_cell(size_layer) for _ in range(num_layers)], state_is_tuple = False
-        )
-        self.X = tf.placeholder(tf.float32, (None, None, size))
-        self.Y = tf.placeholder(tf.float32, (None, output_size))
-
-    
-        drop = tf.contrib.rnn.DropoutWrapper(
-            rnn_cells, output_keep_prob=forget_bias
-        )
-        self.hidden_layer = tf.placeholder(
-            tf.float32, (None, num_layers * 2 * size_layer)
-        )
-        self.outputs, self.last_state = tf.nn.dynamic_rnn(
-            drop, self.X, initial_state = self.hidden_layer, dtype = tf.float32
-        )
-        self.logits = tf.layers.dense(self.outputs[-1], output_size)
-        self.cost = tf.reduce_mean(tf.square(self.Y - self.logits))
-        self.optimizer = tf.train.AdamOptimizer(learning_rate).minimize(self.cost)
-
-class NasdaqTrain():
-
-    num_layers : int
-    size_layer : int
-    timestamp : int
-    epoch : int
-    dropout_rate : float
-    future_day : int
-    learning_rate : float
-    
-    @classmethod
-    def __init__(self, ticker):
-        self.num_layers = 1
-        self.size_layer = 128
-        self.timestamp =5
-        self.epoch = 300
-        self.dropout_rate = 0.8
-        self.future_day = 30
-        self.learning_rate = 0.01
-        self.df =None
-        self.ticker = ticker
-
-    @staticmethod
-    def calculate_accuracy(real, predict):
-        real = np.array(real) +1
-        predict = np.array(predict) +1
-        percentage = 1 - np.sqrt(np.mean(np.square((real-predict)/real)))
-        return percentage * 100
-
-    @staticmethod
-    def anchor (signal, weight) :
-        buffer = []
-        last = signal[0]
-        for i in signal:
-            smoothed_val = last * weight + (1 - weight) * i
-            buffer.append(smoothed_val)
-            last = smoothed_val
-        return buffer   
-    @classmethod
-    def hook(self):
-        r= train('TSLA')
-        acc = self.get_accuracies(r)
-        f = self.draw_forecasts(r)
-    @classmethod
-    def train(self):
-
-        sns.set()
-        tf.compat.v1.random.set_random_seed(1234)
-
-        path = os.path.abspath(__file__+"/.."+"/saved_data")
-        filen = self.ticker + "_dataset.csv"
-        input_file = os.path.join(path, filen)
-        df = pd.read_csv(input_file, header=0)
-        df = df.dropna()
-        
-        self.df = df[-50:]
-        # df.drop(['date'], axis=1, inplace=True)
-        # print(df.head())
-        '''
-              open     high       low     close  adjclose       volume  ...  lginnotek_low  compound  new_us_cases  new_us_death  new_ca_cases  new_ca_death
-0      NaN      NaN       NaN       NaN       NaN          NaN  ...            NaN   0.74300           0.0           0.0           0.0           0.0
-1  74.0600  75.1500  73.79750  75.08750  74.57300  135480400.0  ...       138500.0   0.93112           0.0           0.0           0.0           0.0
-2  74.2875  75.1450  74.12500  74.35750  73.84800  146322800.0  ...       138000.0   0.00145           0.0           0.0           0.0           0.0
-3  73.8675  75.0675  73.65625  74.65375  74.14225  132355000.0  ...       137000.0   0.97265           0.0           0.0           0.0           0.0
-4  73.4475  74.9900  73.18750  74.95000  74.43650  118387200.0  ...       136000.0   0.90270           0.0           0.0           0.0           0.0
-
-[5 rows x 27 columns]
-        '''
-
-        minmax = MinMaxScaler().fit(self.df.iloc[:,5:6].astype('float32')) #adjclose index
-        df_log = minmax.transform(self.df.iloc[:,5:6].astype('float32'))
-        df_log = pd.DataFrame(df_log)
-        # print(df_log.head())
-        '''
-                  0
-        0  0.525795
-        1  0.505445
-        2  0.513704
-        3  0.521964
-        4  0.512137
-        '''
-        #split train and test
-        test_size = 30
-        simulation_size = 3
-
-        df_train = df_log.iloc[:-test_size]
-        df_test = df_log.iloc[-test_size:]
-
-        results = []
-        for i in range(simulation_size):
-            print('simulation %d' %(i + 1))
-            results.append(self.forecast(df_train, df_log, test_size, self.df, minmax, i+1))
-
-        # date_ori = pd.to_datetime(df.iloc[:, 0]).tolist()
-        # for i in range(test_size):
-        #     date_ori.append(date_ori[-1] + timedelta(days=1))
-        # date_ori = pd.Series(date_ori).dt.strftime(date_format = '%Y-%m-%d').tolist()
-        # print(date_ori[-5:])
-
-        # accepted_results = []
-        # for r in results:
-        #     if ((np.array(r[-test_size:])) < np.min(df['adjclose']).sum() == 0 and \
-        #         (np.array(r[-test_size:]) > np.max(df['adjclose']) * 2 ).sum()==0) :
-        #         accepted_results.append(r)
-        # print("length of accepted_results: ", len(accepted_results))
-
-        accuracies= [self.calculate_accuracy(self.df['adjclose'].iloc[-test_size:].values, r) for r in results]
-        
-
-        plt.figure(figsize= (15,5))
-        for no, r in enumerate(results):
-            plt.plot(r, label = 'forcast %d'% (no+1))
-        plt.plot(self.df['adjclose'].iloc[-test_size:].values, label = 'true trend', c= 'black')
-        plt.legend()
-        plt.title('Average accuracy: %.4f'%(np.mean(accuracies)))
-
-        path = os.path.abspath(__file__+"/.."+"/plots/")
-
-        file_name = self.ticker + "_prediction1.png"
-        output_file = os.path.join(path, file_name)
-        plt.show()
-        # plt.savefig(output_file)
-
-        print('==== Saved nasdaq.ckpy + prediction.png ====')
-
-    @classmethod
-    def forecast (self, df_train, df_log, test_size, df, minmax, cnt):
-        tf.reset_default_graph()
-        modelnn = Model(self.learning_rate, self.num_layers, df_log.shape[1], self.size_layer, 
-        df_log.shape[1], self.dropout_rate)
-        
-        sess = tf.InteractiveSession()
-        sess.run(tf.global_variables_initializer())
-        date_ori = pd.to_datetime(df.iloc[:,0]).tolist()
-
-        pbar = tqdm(range(self.epoch), desc='train loop')
-        for i in pbar:
-            init_value = np.zeros((1, self.num_layers * 2 * self.size_layer))
-            total_loss, total_acc = [], []
-            for k in range(0, df_train.shape[0] - 1, self.timestamp):
-                index = min(k + self.timestamp, df_train.shape[0]-1)
-                batch_x = np.expand_dims(
-                    df_train.iloc[ k : index, :].values, axis=0
-                )
-                batch_y = df_train.iloc[k + 1 : index +1 , :].values
-                logits, last_state, _, loss = sess.run(
-                    [modelnn.logits, modelnn.last_state, modelnn.optimizer, modelnn.cost],
-                    feed_dict = {
-                        modelnn.X : batch_x,
-                        modelnn.Y : batch_y,
-                        modelnn.hidden_layer : init_value,
-                    },
-                )
-
-                init_value = last_state
-                total_loss.append(loss)
-                total_acc.append(self.calculate_accuracy(batch_y[:, 0], logits[:,0]))
-            pbar.set_postfix(cost = np.mean(total_loss), acc= np.mean(total_acc))
-
-        future_day = test_size
-
-        output_predict = np.zeros((df_train.shape[0] + future_day, df_train.shape[1]))
-        output_predict[0] = df_train.iloc[0]
-        upper_b = (df_train.shape[0] // self.timestamp) * self.timestamp
-        init_value = np.zeros((1, self.num_layers * 2 * self.size_layer))
-
-        for k in range(0, (df_train.shape[0] // self.timestamp) * self.timestamp, self.timestamp):
-            out_logits, last_state = sess.run(
-                [modelnn.logits, modelnn.last_state], 
-                feed_dict = {
-                    modelnn.X : np.expand_dims(
-                        df_train.iloc[k: k + self.timestamp], axis = 0
-                    ),
-                    modelnn.hidden_layer : init_value,
-                },
-            )
-            init_value = last_state
-            output_predict[k+1 : k + self.timestamp + 1] = out_logits
-
-        if upper_b != df_train.shape[0]:
-            out_logits, last_state = sess.run(
-                [modelnn.logits, modelnn.last_state],
-                feed_dict = {
-                    modelnn.X : np.expand_dims(df_train.iloc[upper_b:], axis=0),
-                    modelnn.hidden_layer: init_value,
-                },
-            )
-            output_predict[upper_b +1 : df_train.shape[0]+1] = out_logits
-            future_day -=1
-            date_ori.append(date_ori[-1]+timedelta(days =1))
-
-        init_value = last_state
-        
-        
-        for i in range(future_day):
-            o = output_predict[-future_day - self.timestamp + i : -future_day + i]
-            out_logits, last_state = sess.run(
-                [modelnn.logits, modelnn.last_state],
-                feed_dict = {
-                    modelnn.X : np.expand_dims(o, axis=0),
-                    modelnn.hidden_layer: init_value,
-                },
-            )
-            init_value =  last_state
-            output_predict[-future_day + i] = out_logits[-1]
-            date_ori.append(date_ori[-1] + timedelta(days =1))
-
-        output_predict = minmax.inverse_transform(output_predict)
-        deep_future = self.anchor(output_predict[:, 0], 0.3)
-        
-        tickers = {'AAPL':'new_apple', 'TSLA': 'new_tesla'}
-        folder = [tickers[k] for k in tickers if k == self.ticker]
-        path2 = os.path.abspath(__file__+"/.."+"/models/"+folder[0]+"/")
-        
-        modelnn.X = np.expand_dims(output_predict, axis=0)
-        # modelnn.hidden_layer = np(modelnn.last_state).reshape(1,1 ,len(modelnn.X))
-        # print('====', modelnn.X , modelnn.hidden_layer,'====')
-        # modelnn.X = int((modelnn.X[0]) )
-
-        # weights = tf.Variable(tf.random_normal(modelnn.X), name='weights')
-        # # biases = tf.Variable(tf.random_normal([moedlnn.X]), name='biases')
-        # saver  = tf.train.Saver()
-        # sess = tf.Session()
-        # name = '/' + self.ticker+ str(cnt)
-        # sess.run(tf.global_variables_initializer())
-        # saver.save(sess, path2+name, global_step=1000)
-
-        return deep_future[-test_size:]
-           
-if __name__ == "__main__":
-    dataset = NasdaqDF()
-    # dataset.hook()
-    train = NasdaqTrain('AAPL')
-    train.train()
- 
-
-    # NasdaqTrain.train()
-    # NasdaqTrain.train()
-
-
-
-
+      
 # =============================================================
 # =============================================================
 # ===================      Resourcing    ======================
@@ -834,159 +419,153 @@ parser = reqparse.RequestParser()
 parser.add_argument('id', type=int, required=False, help='This field cannot be left blank')
 parser.add_argument('date', type=str, required=False, help='This field cannot be left blank')
 parser.add_argument('ticker', type=str, required=False, help='This field cannot be left blank')
-parser.add_argument('pred_price', type=float, required=False, help='This field cannot be left blank')
-parser.add_argument('stock_id', type=int, required=False, help='This field cannot be left blank')
-parser.add_argument('covid_id', type=int, required=False, help='This field cannot be left blank')
-parser.add_argument('news_id', type=int, required=False, help='This field cannot be left blank')
-
-class NasdaqPrediction(Resource):    
-    @staticmethod
-    def post():
-        data = parser.parse_args()
-        nprediction = NasdaqPredictionDto(data['date'], data['ticker'],data['pred_price'], data['stock_id'], data['covid_id'], data['news_id'])
-        try: 
-            nprediction.save(data)
-            return {'code' : 0, 'message' : 'SUCCESS'}, 200
-        except:
-            return {'message': 'An error occured inserting the article'}, 500
-        return nprediction.json(), 201
-    
-    
-    def get(self, id):
-        article = NasdaqPredictionDao.find_by_id(id)
-        if article:
-            return article.json()
-        return {'message': 'Article not found'}, 404
-
-    def put(self, id):
-        data = NasdaqPrediction.parser.parse_args()
-        prediction = NasdaqPredictionDao.find_by_id(id)
-
-        prediction.title = data['title']
-        prediction.content = data['content']
-        prediction.save()
-        return prediction.json()
-
-    @staticmethod
-    def delete():
-        args = parser.parse_args()
-        print(f'Ticker {args["ticker"]} on date {args["date"]} is deleted')
-        NasdaqPredictionDao.delete(args['id'])
-        return {'code' : 0 , 'message' : 'SUCCESS'}, 200
-
-class NasdaqPredictions(Resource):
-    def get(self):
-        return NasdaqPredictionDao.find_all(), 200
-        # return {'articles':[article.json() for article in ArticleDao.find_all()]}
-
-class TeslaPredGraph(Resource):
-
-    @staticmethod
-    def get():
-        print("=====nasdaq_prediction.py / TeslPredaGraph's get")
-        stock = NasdaqPredictionVo
-        stock.ticker = 'TSLA'
-        data = NasdaqPredictionDao.find_all_by_ticker(stock)
-        return data, 200
-
-
-    @staticmethod
-    def post():
-        print("=====nasdaq_prediction.py / TeslaPredGraph's post")
-        args = parser.parse_args()
-        stock = NasdaqPredictionVo
-        stock.ticker = args.ticker
-        data = NasdaqPredictionDao.find_all_by_ticker(stock)
-        return data[0], 200
+parser.add_argument('pred_price', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('open', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('high', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('low', type=str, required=False, help='This field cannot be left blank')
+parser.add_argument('compound', type=str, required=False, help='This field cannot be left blank')
         
-class ApplePredGraph(Resource):
-
-    @staticmethod
-    def get():
-        print("=====nasdaq_prediction.py / ApplePredGraph's get")
-        stock = NasdaqPredictionVo
-        stock.ticker = 'AAPL'
-        data = NasdaqPredictionDao.find_all_by_ticker(stock)
-        return data, 200
-
+class Prediction(Resource):
 
     @staticmethod
     def post():
         print("=====nasdaq_prediction.py / ApplePredGraph's post")
         
+        parser.add_argument('ticker', type=str, required=True,
+        help='This field should be a number')
         parser.add_argument('open', type=str, required=True,
         help='This field should be a number')
         parser.add_argument('high', type=str, required=True,
         help='This field should be a number')
         parser.add_argument('low', type=str, required=True,
         help='This field should be a number')
-        parser.add_argument('close', type=str, required=True,
+        parser.add_argument('compound', type=str, required=True,
         help='This field should be a number')
-
-        service = AppleService()
+    
+        print('======== WE ARE IN THE PREDICTION =======')
+        service = Service()
         args = parser.parse_args()
         apple = NasdaqPredictionVo()
-        apple.ticker = 'AAPL'
+        apple.ticker = args.ticker
         apple.open = args.open
         apple.high = args.high
         apple.low = args.low
-        apple.close = args.close
+        print('=========Received values ======')
+        print(args.ticker, ' , ', args.open, ' , ', args.high, ' , ', args.low, ', ',args.compound)
+        apple.compound = args.compound
         service.assign(apple)
         price = service.predict()
+        # price = 150
         print(f'Predicted adjust close price is $ {price}')
-        return {'price': str(price)}, 200
+        return json.dumps({'price': str(price)}), 200
         
+Session = openSession()
+session = Session()
+global graph
+graph = tf.compat.v1.get_default_graph()
 
-
-
-class AppleService(object):
+class Service(object):
     
     open : float = 0.0
     high : float = 0.0
     low : float = 0.0
-    close : float = 0.0
-    
+    compound : float = 0.0
+    ticker :str = ''
 
     def __init__(self):
-        self.path = os.path.abspath(__file__+"/.."+"/models/tesla/")
+        if self.ticker == 'AAPL' or self.ticker == 'aapl':
+            self.path = os.path.abspath(__file__+"/.."+"/models/apple/")
+        else:
+            self.path = os.path.abspath(__file__+"/.."+"/models/tesla/")
 
     def assign(self, param):
-        self.open = param.open
-        self.high = param.high
-        self.low = param.low
-        self.close = param.close
+        self.open = float(param.open)
+        self.high = float(param.high)
+        self.low = float(param.low)
+        self.compound = float(param.compound)
         self.ticker = param.ticker
 
     def predict(self):
-        print('====in predict func ====')
-        sess = tf.Session()
-        saver = tf.train.import_meta_graph(self.path+'/TSLA10.ckpt.meta')
-        # saver.restore(sess, tf.train.latest_checkpoint(self.path))
-        saver.restore(sess, self.path+'/TSLA10.ckpt')
-        all_vars = tf.get_collection('vars')
-        for v in all_vars:
-            v_ = sess.run(v)
-            print(v_)
-            # fname = '/' + self.ticker + str(i+1) + '.ckpt'
-            # print('File NAME: ', fname)
-            # saver.restore(sess, self.path+fname)
-            # data = [[self.open, self.high, self.low], ]                
-            # arr = np.array(data, dtype=np.float32)
-            # print({X:arr[0,3]})
-            # dict = sess.run(tf.matmul(X,W)+b, feed_dict={X:arr[0,3]})
-            # print ('dict!!' , dict[0])
-        # avg_pred = sum(result)/len(result)
-        # return dict[0]
-'''
-if __name__ == "__main__":
+        K.clear_session()
+        
+        checkpoint_path = os.path.join(self.path, 'checkpoint.h5')
+        
 
-    service = AppleService()
+        with graph.as_default():
+            model = keras.models.load_model(checkpoint_path)
+            model.summary()
+            
+            print('====================5===========================')
+
+        ######### PREPARE FOR PREDICTION FEATURES ###############
+            x = []
+            x.append(self.open)
+            x.append(self.high)
+            x.append(self.low)
+            x.append((self.high + self.low)/2) #'moving_avg'
+            x.append(0.05)  #'increase_rate_vol'
+            x.append(0.05)  #'increase_rate_adjclose'
+            
+            #the other NASDAQ stock price from the MarisDB
+            apple_df = pd.read_sql_table('yahoo_finance', engine.connect())
+            op_tic = ['TSLA', 'AAPL']
+            tic = [t for t in op_tic if t != self.ticker]
+            apple_df = apple_df.loc[(apple_df['ticker']==tic[0])].iloc[-1]
+
+            x.append(apple_df['open'])
+            x.append(apple_df['high'])
+            x.append(apple_df['low'])
+            x.append(apple_df['close'])
+            x.append(apple_df['adjclose'])
+
+            #the other KOSPI stocks pricees from the MarisDB
+            KOSPI = {'lgchem': '051910', 'lginnotek':'011070'}
+
+            for k_tic, v in KOSPI.items():
+                kospi_df = pd.read_sql_table('korea_finance', engine.connect())
+                kospi_df = kospi_df.loc[(kospi_df['ticker'] == v)].iloc[-1]
+                x.append(float(kospi_df['open']))
+                x.append(float(kospi_df['close']))
+                x.append(float(kospi_df['high']))
+                x.append(float(kospi_df['low']))
+            
+            x.append(self.compound)
+
+            #Append covid cases 
+            covid_json = json.dumps(USCovids.get()[0], default = lambda x: x.__dict__)
+            covid_df = pd.read_json(covid_json)
+            covid_df = covid_df.iloc[-1]
+            
+            x.append(covid_df['new_us_cases'])
+            x.append(covid_df['new_us_deaths'])
+            x.append(covid_df['new_ca_cases'])
+            x.append(covid_df['new_ca_deaths'])
+
+            x = [x]
+            
+            #normalize data
+            scaler = MinMaxScaler(feature_range=(0,1))
+            scaled = scaler.fit_transform(x)
+            X = scaled.reshape((scaled.shape[0], 1, scaled.shape[1]))
+
+            #predict the price and back to actual price
+            price = model.predict(X)
+            scaled[0,0]=price[0,0]
+            unscaled = scaler.inverse_transform(scaled)
+        
+        return round(unscaled[0,0], 2)
+
+
+if __name__ == "__main__":
+    test = Prediction()
+    service = Service()
     apple = NasdaqPredictionVo()
-    apple.open = 120
-    apple.high = 125
-    apple.low = 118
-    apple.ticker = 'TSLA'
+    apple.open = 117.62
+    apple.high = 118.64
+    apple.low = 117.08
+    apple.compound = -0.5
+    apple.ticker = 'AAPL'
     service.assign(apple)
-    price = service.predict()
-    print ("price is ", price)
-'''
+    service.predict()
+
+

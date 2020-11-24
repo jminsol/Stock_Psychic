@@ -14,6 +14,22 @@ import datetime
 
 
 
+from com_stock_api.ext.db import db, openSession
+from com_stock_api.resources.board import BoardDto
+from com_stock_api.resources.member import MemberDto
+import datetime
+
+from com_stock_api.ext.db import db
+import pandas as pd
+import json
+
+from flask import request, jsonify
+from flask_restful import Resource, reqparse
+import datetime
+
+
+
+
 
 '''
  * @ Module Name : comment.py
@@ -102,8 +118,11 @@ class CommentDao(CommentDto):
 
     @classmethod
     def find_maxnum_for_board(cls, board_id):
-        sql = cls.query.filter(max(cls.id)).filter(cls.board_id == board_id)
+        print(f'board_id: {board_id}')
+        sql = cls.query(max(cls.id)+1).filter(cls.board_id == board_id).one()
+        print(sql)
         df = pd.read_sql(sql.statement, sql.session.bind)
+        print(df)
         return json.loads(df.to_json(orient='records'))
 
     @classmethod
@@ -129,6 +148,7 @@ class CommentDao(CommentDto):
     def save(comment):
         db.session.add(comment)
         db.session.commit()
+        db.session.close()
 
     @staticmethod
     def modify_comment(comment):
@@ -179,6 +199,8 @@ class Comment(Resource):
         body = request.get_json()
         print(f'body: {body}')
         comment = CommentDto(**body)
+        # comment.comment_ref = CommentDao.find_maxnum_for_board(comment.board_id)
+        print(f'COMMENT ID: {comment.id}')
         CommentDao.save(comment)
         content = comment.comment
         return {'comment': str(content)}, 200
@@ -227,4 +249,3 @@ class CommentMaxNum(Resource):
     def get(self, id):
         num = CommentDao.find_maxnum_for_board(id)
         return num, 200
-

@@ -1,6 +1,6 @@
 from com_stock_api.ext.db import db, openSession
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Table, MetaData
 import datetime
 from com_stock_api.resources.member import MemberDto
 
@@ -185,10 +185,17 @@ class BoardDao(BoardDto):
         df = pd.read_sql(sql.statement, sql.session.bind)
         return json.loads(df.to_json(orient='records'))
 
+    @classmethod
+    def find_by_title(cls, title):
+        sql = cls.query.filter(cls.email.like(f'%{title}%'))
+        df = pd.read_sql(sql.statement, sql.session.bind)
+        return json.loads(df.to_json(orient='records'))
+
     @staticmethod
     def save(board):
         db.session.add(board)
         db.session.commit()
+        db.session.close()
 
     @staticmethod
     def insert_many():
@@ -213,24 +220,18 @@ class BoardDao(BoardDto):
 
     @classmethod
     def delete_board(cls, id):
-        # 트랜잭션 필요
+        try:
+            db.engine.execute(f'delete from comments where board_id = {id}')
+            data = cls.query.get(id)
+            db.session.delete(data)
+            db.session.commit()
+        except:
+            db.session.rollback()
+            raise
+        finally:
+            db.session.close()
 
-        # comments = CommentDao.find_by_boardid(id)
-        # print(f'delete board comments: {comments}')
-        # print(f'delete board comments: {type(comments)}')
-        # for c in comments:
-        #     CommentDao.delete_comment(c)
         
-        # File "C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\board.py", line 6, in <module>
-        #     from com_stock_api.resources.comment import CommentDao
-        # File "C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\comment.py", line 2, in <module>
-        #     from com_stock_api.resources.board import BoardDto
-        # ImportError: cannot import name 'BoardDto' from 'com_stock_api.resources.board' (C:\Users\saltQ\stock_psychic_api\com_stock_api\resources\board.py)
-
-        data = cls.query.get(id)
-        db.session.delete(data)
-        db.session.commit()
-        db.session.close()
 
 
 
@@ -264,7 +265,7 @@ class Board(Resource):
         print(f'body: {body}')
         board = BoardDto(**body)
         BoardDao.save(board)
-        return {'board': str(board.id)}, 200
+        return {'message': 'SUCCESS'}, 200
     
     @staticmethod
     def get(id):
@@ -305,3 +306,16 @@ class Boards(Resource):
     def get(self):
         data = BoardDao.find_all()
         return data, 200
+
+class BoardTitleSearch(Resource):
+    
+    @staticmethod
+    def get(title):
+        try:
+            board = BoardDao.find_by_title(title)
+            print(f'board: {board}')
+            if board:
+                return board, 200
+        except Exception as e:
+            print(e)
+            return {'message': 'Aricle not found'}, 404

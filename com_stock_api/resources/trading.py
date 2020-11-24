@@ -16,6 +16,11 @@ import random
 from sqlalchemy import func
 
 import datetime
+import operator
+
+import os
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 
 
@@ -99,6 +104,8 @@ class TradingPro:
             
             # tickers의 값 중 회원의 stock_qty 수만큼 랜덤 추출
             random_ticker = random.choices(tickers, k=members_trading_qty)
+            while len(set(random_ticker)) < members_trading_qty:
+                random_ticker = random.choices(tickers, k=members_trading_qty)
 
             for tick in random_ticker:
                 email = member['email']
@@ -114,7 +121,7 @@ class TradingPro:
                     trading_date = ''
                     while True:
                         trading_date = random.choice(self.nasdaqs['date'])
-                        if trading_date > datetime.datetime.strptime('2017-02-28 00:00:00', '%Y-%m-%d %H:%M:%S'):
+                        if trading_date > datetime.datetime.strptime('2017-02-28', '%Y-%m-%d'):
                             break
                     high = float(nasdaq[nasdaq['date'] == trading_date]['high'])
                     low = float(nasdaq[nasdaq['date'] == trading_date]['low'])
@@ -138,6 +145,264 @@ class TradingPro:
        
         trading_df = pd.DataFrame(trading_arr)
         return trading_df
+
+
+
+
+
+
+# =====================================================================
+# =====================================================================
+# ===================      preprocessing      =========================
+# =====================================================================
+# =====================================================================
+
+
+
+class RecommendStockPreprocessing():
+
+    def hook_process(self, members):
+
+        # isAdmin = members['email'] == 'admin@stockpsychic.com'
+        # members = members[~isAdmin]
+        
+        # 컬럼 삭제
+        members = self.drop_feature(members, 'password')
+        members = self.drop_feature(members, 'name')
+        members = self.drop_feature(members, 'profile')
+        members = self.drop_feature(members, 'role')
+        members = self.drop_feature(members, 'probability_churn')
+        
+        # 데이터 정제
+        members = self.geography_nominal(members)
+        members = self.gender_nominal(members)
+        members = self.age_ordinal(members)
+        members = self.drop_feature(members, 'age')
+        members = self.creditScore_ordinal(members)
+        members = self.balance_ordinal(members)
+        members = self.estimatedSalary_ordinal(members)
+
+        return members
+
+    # ---------------------- 데이터 정제 ----------------------
+    @staticmethod
+    def drop_feature(members, feature):
+        members = members.drop([feature], axis=1)
+        return members
+
+    @staticmethod
+    def creditScore_ordinal(members):
+        members['credit_score'] = pd.qcut(members['credit_score'].rank(method='first'), 10, labels={1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+        return members
+
+    @staticmethod
+    def geography_nominal(members):
+        geography_mapping = {'France': 1, 'Spain': 2, 'Germany': 3}
+        members['geography'] = members['geography'].map(geography_mapping)
+        return members
+
+    @staticmethod
+    def gender_nominal(members):
+        gender_mapping = {'Male': 0, 'Female': 1, 'Etc.': 2}
+        members['gender'] = members['gender'].map(gender_mapping)
+        return members
+
+    @staticmethod
+    def age_ordinal(members):
+        members['age'] = members['age'].fillna(-0.5)
+        bins = [-1, 18, 25, 30, 35, 40, 45, 50, 60, np.inf] # 범위
+        labels = ['Unknown', 'Youth', 'YoungAdult', 'Thirties', 'LateThirties', 'Forties', 'LateForties', 'AtferFifties', 'Senior']
+        members['AgeGroup'] = pd.cut(members['age'], bins, labels=labels)
+        age_title_mapping = {
+            0: 'Unknown',
+            1: 'Youth', 
+            2: 'YoungAdult',
+            3: 'Thirties',
+            4: 'LateThirties',
+            5: 'Forties',
+            6: 'LateForties',
+            7: 'AtferFifties',
+            8: 'Senior'
+        }
+        age_mapping = {
+            'Unknown': 0,
+            'Youth': 1, 
+            'YoungAdult': 2,
+            'Thirties': 3,
+            'LateThirties': 4,
+            'Forties': 5,
+            'LateForties': 6,
+            'AtferFifties': 7,
+            'Senior': 8
+        }
+        members['AgeGroup'] = members['AgeGroup'].map(age_mapping)
+        return members
+
+    @staticmethod
+    def balance_ordinal(members):
+        members['balance'] = pd.qcut(members['balance'].rank(method='first'), 10, labels={1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+        return members
+
+    @staticmethod
+    def estimatedSalary_ordinal(members):
+        members['estimated_salary'] = pd.qcut(members['estimated_salary'].rank(method='first'), 10, labels={1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+        return members
+
+
+
+
+
+
+
+
+
+
+# =====================================================================
+# =====================================================================
+# =====================      similarity      ==========================
+# =====================================================================
+# =====================================================================
+
+
+
+class RecommendStockModel():
+    
+    def __init__(self):
+        self.path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'models', 'recommend_stock')
+
+        self._this_mem = tf.placeholder(tf.float32, name='this_member')
+        self._target_mem = tf.placeholder(tf.float32, name='target_member')
+        self._feed_dict = {}
+    
+    def hook(self):
+        self.substitute()
+        
+    def substitute(self):
+        members = pd.read_sql_table('members', engine.connect())
+        preprocessing = RecommendStockPreprocessing()
+        refined_members = preprocessing.hook_process(members)
+        
+        isExitedMem = refined_members[refined_members['exited']==1].index
+        refined_members = refined_members.drop(isExitedMem)
+        print(f'REFINED MEMBERS: \n{refined_members}')
+
+        refined_members.set_index(refined_members['email'], inplace=True)
+        refined_members = refined_members.drop(['email'], axis=1)
+        print(f'REFINED MEMBERS AFTER EMAIL INDEXING: \n{refined_members}')
+
+        base_columns = refined_members.columns
+
+        for email in refined_members.index:
+
+            this_member = pd.DataFrame(refined_members.loc[email, base_columns]).T
+            else_members = refined_members.loc[:, base_columns].drop(email, axis=0)
+
+            for mem in else_members.index:
+
+                self._feed_dict = {'this_member': this_member.loc[email, base_columns], 'target_member': else_members.loc[mem, base_columns]}
+                self.create_similarity_model()
+
+            #     if mem == '15565806@gmail.com': break          
+            # if mem == '15565806@gmail.com': break
+          
+    def create_similarity_model(self):
+        this = self._this_mem
+        target = self._target_mem
+        feed_dict = self._feed_dict
+
+        _main_norm = tf.norm(this, name='this_norm')
+        _row_norm = tf.norm(target, name='target_norm')
+
+        expr_dot = tf.tensordot(this, target, 1, name='member_dot')
+        expr_div = tf.divide(this, target, name='member_div')
+
+        with tf.Session() as sess:
+            _ = tf.Variable(initial_value='fake_variable')
+            sess.run(tf.global_variables_initializer())
+
+            main_m = sess.run(_main_norm, {this: feed_dict['this_member']})
+            row_mem = sess.run(_row_norm, {target: feed_dict['target_member']})
+            print(f'main_m: {main_m}')
+            print(f'row_mem: {row_mem}')
+
+            prod = sess.run(expr_dot, {this: feed_dict['this_member'], target: feed_dict['target_member']})
+            print(f'PROD: {prod}')
+            similarity = sess.run(expr_div, {this: prod, target: (main_m*row_mem)})
+            print(f'SIMILARITY: {similarity}')
+            
+            checkpoint_path = os.path.join(self.path, 'recommend_stock_checkpoint', 'similarity.ckpt')
+            saver = tf.train.Saver()
+            saver.save(sess, checkpoint_path, global_step=1000)
+
+
+if __name__ == '__main__':
+    rsmodel = RecommendStockModel()
+    rsmodel.hook()
+
+
+# 위의 checkpoint 저장이 너무 느려 아래 방식으로 수정
+from scipy.spatial.distance import pdist, squareform
+        
+class RecommendStocksWithSimilarity():
+
+    def hook_process(self, email):
+        if email != None:
+            similarity = self.similarity(email)
+            sim_members = self.sortFifty(similarity)
+            match_tradings = self.similarMembersTradings(sim_members, email)
+            return pd.DataFrame(match_tradings)
+
+    @staticmethod
+    def similarity(email):
+        members = pd.read_sql_table('members', engine.connect())
+        engine.connect().close()
+        isZeroBalMem = members[(members['balance'] == 0) & (members['email'] != email)].index
+        members = members.drop(isZeroBalMem)
+
+        preprocessing = RecommendStockPreprocessing()
+        refined_members = preprocessing.hook_process(members)
+        
+        isExitedMem = refined_members[refined_members['exited']==1].index
+        refined_members = refined_members.drop(isExitedMem)
+        isLessBalMem = refined_members[(refined_members['balance'] <= 2) & (refined_members['email'] != email)].index
+        refined_members = refined_members.drop(isLessBalMem)
+
+        refined_members.set_index(refined_members['email'], inplace=True)
+        refined_members = refined_members.drop(['email'], axis=1)
+
+        base_index = refined_members.index
+        base_columns = refined_members.columns
+
+        row_dist = pd.DataFrame(squareform(pdist(refined_members, metric='euclidean')), columns=base_index, index=base_index)
+        print(row_dist)
+
+        this_mem = row_dist[row_dist.index == email]
+        this_mem = this_mem.reset_index(drop=True)
+
+        return this_mem.to_dict(orient='records')[-1]
+
+    @staticmethod
+    def sortFifty(sim_dict):
+        sim_members = sorted(sim_dict.items(), key=operator.itemgetter(1), reverse=False)[1:50]
+        return sim_members
+
+    @staticmethod
+    def similarMembersTradings(sim_members, email):
+        tradings = pd.read_sql_table('tradings', engine.connect())
+        this_members_tradings = list(tradings[tradings['email'] == email]['stock_ticker'])
+
+        match_tradings = pd.DataFrame(columns=('id', 'email', 'stock_type', 'stock_ticker', 'stock_qty', 'price', 'trading_date'))
+        for mem, prob in sim_members:
+            match_tradings = pd.concat([match_tradings, tradings[tradings['email'] == mem]])
+        stocks_size = list(match_tradings.groupby('stock_ticker').size().sort_values(ascending=False).index)
+        stocks_list = [{'stock_ticker':s, 
+        'stock_type': str(match_tradings[match_tradings['stock_ticker'] == s]['stock_type'].unique()[0]),
+        'email': email} for s in stocks_size if s not in this_members_tradings]
+        return stocks_list[:2]
+
+
+
+
 
 
 
@@ -196,7 +461,10 @@ class TradingVo:
     stock_ticker: int = 0
     stock_qty: int = 0
     price: float = 0.0
-    trading_date: str = db.Column(db.String(1000), default=datetime.datetime.now())
+    trading_date: datetime = datetime.datetime.now()
+
+
+
 
 
 
@@ -220,8 +488,8 @@ class TradingDao(TradingDto):
         return json.loads(df.to_json(orient='records'))
 
     @classmethod
-    def find_by_id(cls, trading):
-        sql = cls.query.filter(cls.id == trading.id)
+    def find_by_id(cls, id):
+        sql = cls.query.filter(cls.id == id)
         df = pd.read_sql(sql.statement, sql.session.bind)
         print(json.loads(df.to_json(orient='records')))
         return json.loads(df.to_json(orient='records'))
@@ -232,12 +500,22 @@ class TradingDao(TradingDto):
         df = pd.read_sql(sql.statement, sql.session.bind)
         print(json.loads(df.to_json(orient='records')))
         return json.loads(df.to_json(orient='records'))
+
+    @classmethod
+    def get_recommend_stocks(cls, email):
+        rs = RecommendStocksWithSimilarity()
+        df = rs.hook_process(email)
+        # if len(df) <= 2:
+        #     df = cls.query(func.count(TradingDto.stock_ticker).label('cnt')).groupby(TradingDto.stock_ticker).order_by('cnt'.desc())
+        print(json.loads(df.to_json(orient='records')))
+        return json.loads(df.to_json(orient='records'))
+        
     
     @staticmethod
     def save(trading):
         db.session.add(trading)
         db.session.commit()
-        session.close()
+        db.session.close()
 
     @staticmethod
     def insert_many():
@@ -255,7 +533,7 @@ class TradingDao(TradingDto):
         Session = openSession()
         session = Session()
         trading = session.query(TradingDto)\
-        .filter(TradingDto.id==trading.id)\
+        .filter(TradingDto.id==trading['id'])\
         .update({TradingDto.stock_qty: trading['stock_qty'], TradingDto.price: trading['price'], TradingDto.trading_date: trading['trading_date']})
         session.commit()
         session.close()
@@ -266,6 +544,8 @@ class TradingDao(TradingDto):
         db.session.delete(data)
         db.session.commit()
         db.session.close()
+
+
 
 
 
@@ -293,12 +573,12 @@ parser.add_argument('trading_date', type=str, required=True, help='This field ca
 class Trading(Resource):        
         
     @staticmethod
-    def post():
+    def post(id):
         body = request.get_json()
         print(f'body: {body}')
         trading = TradingDto(**body)
         TradingDao.save(trading)
-        return {'trading': str(trading.id)}, 200
+        return {'message': 'OK'}, 200
     
     @staticmethod
     def get(id):
@@ -311,11 +591,11 @@ class Trading(Resource):
             return {'message': 'Trading not found'}, 404
 
     @staticmethod
-    def put(id):
-        args = parser.parse_args()
+    def put():
+        args = request.get_json()
         print(f'Trading {args} updated')
         try:
-            TradingDao.update(args)
+            TradingDao.modify_trading(args)
             return {'code': 0, 'message': 'SUCCESS'}, 200
         except Exception as e:
             print(e)
@@ -324,7 +604,7 @@ class Trading(Resource):
     @staticmethod
     def delete(id):
         try:
-            TradingDao.delete(id)
+            TradingDao.delete_trading(id)
             return {'code': 0, 'message': 'SUCCESS'}, 200
         except Exception as e:
             print(e)
@@ -340,3 +620,10 @@ class Tradings(Resource):
         print(email)
         data = TradingDao.find_by_email(email)
         return data, 200
+
+class TradingRecommendStock(Resource):
+
+    def get(self, email):
+        print(email)
+        data = TradingDao.get_recommend_stocks(email)
+        return data
