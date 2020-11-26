@@ -367,20 +367,6 @@ class LongShortTermModel:
 
         checkpoint_path = os.path.join(self.model_path, 'checkpoint.h5')
 
-        # 기본 모델 객체를 만듭니다
-        model = self.create_model()
-
-        # 모델을 평가합니다
-        loss, mae, mse = model.evaluate(test_X,  test_y, verbose=2)
-        print("Mean Absolute Error before loading weights: ${:5.2f} ".format(mae))
-
-        # 가중치 로드
-        model.load_weights(checkpoint_path)
-
-        # 모델 재평가
-        loss, mae, mse = model.evaluate(test_X,  test_y, verbose=2)
-        print("Mean Absolute Error after loading weights: ${:5.2f} ".format(mae))
-
         new_model = keras.models.load_model(checkpoint_path)
         new_model.summary()
 
@@ -556,16 +542,16 @@ class Service(object):
         return round(unscaled[0,0], 2)
 
 
-if __name__ == "__main__":
-    test = Prediction()
-    service = Service()
-    apple = NasdaqPredictionVo()
-    apple.open = 117.62
-    apple.high = 118.64
-    apple.low = 117.08
-    apple.compound = -0.5
-    apple.ticker = 'AAPL'
-    service.assign(apple)
-    service.predict()
+# if __name__ == "__main__":
+    # test = Prediction()
+    # service = Service()
+    # apple = NasdaqPredictionVo()
+    # apple.open = 117.62
+    # apple.high = 118.64
+    # apple.low = 117.08
+    # apple.compound = -0.5
+    # apple.ticker = 'AAPL'
+    # service.assign(apple)
+    # service.predict()
 
 
