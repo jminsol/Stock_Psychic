@@ -29,4 +29,6 @@ Used skills: Flask, Python, tensorflow, React.js, MariaDB
 
 * The result of NASDAQ Stock - Apple - Prediction Model
 
-![apple_pred_final](https://user-images.githubusercontent.com/60868240/100791122-222de200-345c-11eb-9edd-754c53abdcd9.png) ![learning 2](https://user-images.githubusercontent.com/60868240/100791409-9072a480-345c-11eb-8c99-9311c06ff1b8.png)
+![apple_pred_final](https://user-images.githubusercontent.com/60868240/100791122-222de200-345c-11eb-9edd-754c53abdcd9.png) 
+- Compare to real closing price from test set and predicted closing price from the model
+![learning 2](https://user-images.githubusercontent.com/60868240/100791409-9072a480-345c-11eb-8c99-9311c06ff1b8.png)
