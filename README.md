@@ -26,3 +26,6 @@ Goals: 1. Develop sophsicated neural network architecture with the best cost fun
 Used skills: Flask, Python, tensorflow, React.js, MariaDB
 
 ''' 
+
+
+![apple_pred_final](https://user-images.githubusercontent.com/60868240/100791122-222de200-345c-11eb-9edd-754c53abdcd9.png)
