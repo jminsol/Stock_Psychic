@@ -25,6 +25,8 @@ Goals: 1. Develop sophsicated neural network architecture with the best cost fun
        
 Used skills: Flask, Python, tensorflow, React.js, MariaDB
 
+PLEASE CHECK THE DEMO VIDEO HERE: https://youtu.be/NIFbfkl-304?t=24
+
 ''' 
 
 * The result of NASDAQ Stock - Apple - Prediction Model
