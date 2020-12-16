@@ -5,8 +5,6 @@
  * @ version 1.0
  * @ Modification Information
  * @ authors: Minsol Jeong, Areum Kwak, YoungWoo Lee
- * @ special reference libraries
- *     finance_datareader, konlpy
  * @ Date         Editor              Description
  *  -------    ----------------    ---------------------------
  *  2020.10.01    Minsol Jeong          Initial development
