@@ -23,7 +23,12 @@ Goals: 1. Develop sophsicated neural network architecture with the best cost fun
        
 Used skills: Flask, Python, tensorflow, React.js, MariaDB
 
-PLEASE CHECK THE DEMO VIDEO HERE: https://youtu.be/NIFbfkl-304?t=24
+## PLEASE CHECK THE DEMO VIDEO HERE: https://youtu.be/NIFbfkl-304?t=24
+### Demo to use a prediction model on website
+
+![stock-psychic](https://user-images.githubusercontent.com/60868240/132942476-fe4b8d3e-2287-4807-9ca6-93c46efbec87.gif)
+
+
 
 ''' 
 
